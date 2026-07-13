@@ -1,0 +1,151 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Premium Indigo - Primary brand color */
+    --primary: 243 75% 59%;
+    --primary-foreground: 210 40% 98%;
+
+    /* Soft Slate - Secondary surfaces */
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    /* Muted backgrounds */
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Vibrant Emerald - Accent color */
+    --accent: 160 84% 39%;
+    --accent-foreground: 210 40% 98%;
+
+    /* Alert Red - Destructive actions */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Warning Amber */
+    --warning: 38 92% 50%;
+    --warning-foreground: 210 40% 98%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 243 75% 59%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 243 75% 59%;
+  }
+
+  .dark {
+    --background: 222 47% 4%;
+    --foreground: 213 31% 91%;
+
+    --card: 222 47% 6%;
+    --card-foreground: 213 31% 91%;
+
+    --popover: 222 47% 6%;
+    --popover-foreground: 213 31% 91%;
+
+    --primary: 243 75% 59%;
+    --primary-foreground: 213 31% 91%;
+
+    --secondary: 222 47% 10%;
+    --secondary-foreground: 213 31% 91%;
+
+    --muted: 222 47% 10%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 160 84% 39%;
+    --accent-foreground: 213 31% 91%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 213 31% 91%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 213 31% 91%;
+
+    --border: 222 47% 12%;
+    --input: 222 47% 12%;
+    --ring: 243 75% 59%;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-background/60 backdrop-blur-lg border border-white/20;
+  }
+  
+  .glass-dark {
+    @apply bg-black/40 backdrop-blur-lg border border-white/10;
+  }
+
+  .premium-gradient {
+    @apply bg-gradient-to-br from-primary via-primary/90 to-primary/80;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1 active:scale-95;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: .7;
+      transform: scale(1.1);
+    }
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground min-h-screen overflow-x-hidden font-sans;
+  }
+}
+
+/* Leaflet marker customization */
+.user-marker-icon {
+  filter: hue-rotate(200deg) saturate(1.5);
+}
+.hospital-marker-icon {
+  filter: hue-rotate(330deg) saturate(1.8);
+}
