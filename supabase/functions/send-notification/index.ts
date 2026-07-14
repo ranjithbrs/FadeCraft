@@ -157,7 +157,8 @@ const handler = async (req: Request): Promise<Response> => {
 
         results.push({ channel: "email", status: "sent" });
       } catch (error: any) {
-        console.error("Email send failed");
+        console.error("Email send failed:", error);
+        const errMsg = error instanceof Error ? error.message : (typeof error === 'object' ? JSON.stringify(error) : String(error));
 
         await supabase.from("notifications").insert({
           user_id,
@@ -167,7 +168,7 @@ const handler = async (req: Request): Promise<Response> => {
           status: "failed",
           title,
           message,
-          error_message: "Email delivery failed",
+          error_message: `Email delivery failed: ${errMsg}`.substring(0, 255),
         });
 
         results.push({ channel: "email", status: "failed" });

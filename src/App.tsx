@@ -110,7 +110,7 @@ const App = () => (
       <NotificationProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        <BrowserRouter basename="/mediq-web">
           <AuthProvider>
             <BackButtonHandler />
             <Suspense fallback={<PageLoader />}>

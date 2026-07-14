@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import {
 
 const DoctorDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: doctorData, isLoading: doctorLoading } = useDoctorById(id);
   const { data: reviews = [], isLoading: reviewsLoading } = useReviewsByDoctor(id);
 
@@ -271,7 +272,7 @@ const DoctorDetail = () => {
                 <Button 
                   className="w-full" 
                   size="lg"
-                  onClick={() => window.location.href = `/booking?doctor=${id}`}
+                  onClick={() => navigate(`/booking?doctor=${id}`)}
                 >
                   <Calendar className="h-5 w-5 mr-2" />
                   Book Appointment
