@@ -2,7 +2,7 @@
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/47f15879-ce27-4d6c-986f-a119768cfc32
+**URL**: https://mediq-web-delta.vercel.app/auth
 
 ## How can I edit this code?
 
