@@ -41,7 +41,7 @@ const PatientFollowUp = ({ userId }: { userId: string }) => {
         <div className="flex-1">
           <p className="text-sm font-medium">Next Follow-up Visit</p>
           <p className="text-xs text-muted-foreground">
-            Dr. {(nextFollowUp.doctors as any)?.name} —{" "}
+            Dr. {(nextFollowUp.doctors as any)?.name} ï¿½{" "}
             {format(new Date(nextFollowUp.follow_up_date!), "MMM dd, yyyy")}
           </p>
         </div>
@@ -60,8 +60,8 @@ const Index = () => {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
-  const firstName =
-    authUser?.user_metadata?.full_name?.split(" ")[0] || "there";
+  const displayName =
+    authUser?.user_metadata?.full_name || "there";
 
   return (
     <MainLayout>
@@ -76,7 +76,7 @@ const Index = () => {
           <p className="text-white/80 text-sm font-medium">
             {greeting},
           </p>
-          <h1 className="text-white text-2xl font-bold">{firstName} ??</h1>
+          <h1 className="text-white text-2xl font-bold">{displayName}</h1>
           <p className="text-white/70 text-xs mt-1">
             Find doctors & hospitals near you
           </p>
