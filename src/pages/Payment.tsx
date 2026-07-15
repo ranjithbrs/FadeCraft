@@ -239,7 +239,7 @@ const Payment = () => {
 
       // Initialize Razorpay checkout
       // NOTE: Must match RAZORPAY_KEY_ID in Supabase edge function secrets exactly
-      const keyId = 'rzp_test_TAhe0vT5Iqew1O';
+      const keyId = 'rzp_test_TDjfmTJ4PqFq2Z';
       console.log('Initializing Razorpay with key:', keyId);
 
       const isNative = Capacitor.isNativePlatform();
