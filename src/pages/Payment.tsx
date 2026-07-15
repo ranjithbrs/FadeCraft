@@ -65,7 +65,7 @@ const Payment = () => {
 
   const handleDoctorRatingSubmit = async (rating: number, review: string) => {
     if (!bookingData) return;
-    
+
     try {
       await createReview.mutateAsync({
         doctor_id: bookingData.doctorId,
@@ -79,7 +79,7 @@ const Payment = () => {
 
   const handleHospitalRatingSubmit = async (rating: number, review: string) => {
     if (!bookingData) return;
-    
+
     try {
       await createReview.mutateAsync({
         hospital_id: bookingData.hospitalId,
@@ -176,12 +176,14 @@ const Payment = () => {
 
   const handlePayment = async () => {
     if (!user || !bookingData) return;
+    if (isProcessing) return;
 
     setIsProcessing(true);
 
     try {
       // Dynamically load Razorpay SDK (works on web + Android Capacitor)
       const sdkLoaded = await loadRazorpayScript();
+      await new Promise(resolve => setTimeout(resolve, 500));
       if (!sdkLoaded || !window.Razorpay) {
         throw new Error("Payment gateway could not be loaded. Please check your internet connection and try again.");
       }
@@ -237,13 +239,13 @@ const Payment = () => {
 
       // Initialize Razorpay checkout
       // NOTE: Must match RAZORPAY_KEY_ID in Supabase edge function secrets exactly
-      const keyId = 'rzp_test_Rl44hquefSgy3C';
+      const keyId = 'rzp_test_TAhe0vT5Iqew1O';
       console.log('Initializing Razorpay with key:', keyId);
 
       const isNative = Capacitor.isNativePlatform();
-      
+
       const options: any = {
-        key: keyId || 'rzp_test_Rl44hquefSgy3C', // fallback test key
+        key: keyId, // fallback test key
         amount: order.amount,
         currency: order.currency,
         name: 'MediQ',
@@ -327,13 +329,31 @@ const Payment = () => {
         options.handler = handleSuccess;
         options.modal = {
           ondismiss: () => {
-            setIsProcessing(false);
-            toast({ title: "Payment Cancelled", description: "You cancelled the payment", variant: "destructive" });
-          }
+            if (isProcessing) {
+              setIsProcessing(false);
+            }
+
+            toast({
+              title: "Payment Cancelled",
+              description: "You cancelled the payment.",
+              variant: "destructive",
+            });
+          },
+          escape: false,
+          backdropclose: false,
+          confirm_close: true,
+          animation: true,
         };
+        if (!window.Razorpay) {
+          throw new Error("Razorpay SDK not initialized");
+        }
+        console.log("Opening Razorpay Checkout...");
+        console.log(options);
         const razorpay = new window.Razorpay(options);
         razorpay.on('payment.failed', handleFailure);
-        razorpay.open();
+        setTimeout(() => {
+          razorpay.open();
+        }, 100);
       }
     } catch (error: any) {
       console.error('Payment initialization error:', error);
