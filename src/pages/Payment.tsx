@@ -242,7 +242,7 @@ const Payment = () => {
       const isNative = Capacitor.isNativePlatform();
       
       const options: any = {
-        key: keyId || 'rzp_test_TAhe0vT5Iqew1O', // fallback test key
+        key: keyId || 'rzp_test_Rl44hquefSgy3C', // fallback test key
         amount: order.amount,
         currency: order.currency,
         name: 'MediQ',
@@ -301,10 +301,13 @@ const Payment = () => {
       };
 
       const handleFailure = (error: any) => {
-        console.error('Payment failed:', error);
+        const errObj = error?.error || error;
+        const description = errObj?.description || errObj?.reason || error?.description || error?.reason || "Payment was not completed.";
+        const code = errObj?.code || error?.code;
+        console.error('Payment failed:', JSON.stringify(error, null, 2));
         toast({
           title: "Payment Failed",
-          description: error.description || error.reason || "Payment was not completed.",
+          description: code ? `[${code}] ${description}` : description,
           variant: "destructive",
         });
         setIsProcessing(false);
