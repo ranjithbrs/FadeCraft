@@ -236,7 +236,8 @@ const Payment = () => {
       const order = orderData.order;
 
       // Initialize Razorpay checkout
-      const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID;
+      // NOTE: Must match RAZORPAY_KEY_ID in Supabase edge function secrets exactly
+      const keyId = 'rzp_test_Rl44hquefSgy3C';
       console.log('Initializing Razorpay with key:', keyId);
 
       const isNative = Capacitor.isNativePlatform();
