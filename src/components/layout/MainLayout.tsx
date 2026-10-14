@@ -8,9 +8,9 @@ interface MainLayoutProps {
 
 export const MainLayout = ({ children }: MainLayoutProps) => {
   return (
-    <div className="min-h-screen bg-white flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-slate-950 flex flex-col overflow-hidden text-slate-100">
       <Header />
-      <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-4 scrollbar-hide">
+      <main className="flex-1 overflow-y-auto pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-4 scrollbar-hide bg-slate-950">
         {children}
       </main>
       <BottomNavigation />

@@ -79,21 +79,21 @@ const Search = () => {
 
   return (
     <MainLayout>
-      <div className="container py-6 space-y-6">
+      <div className="container py-6 px-4 max-w-5xl mx-auto space-y-6 text-slate-100 min-h-screen">
         <div>
-          <h1 className="text-2xl font-bold mb-2">Search Hospitals & Doctors</h1>
-          <p className="text-muted-foreground">Find the best healthcare providers near you</p>
+          <h1 className="text-2xl font-black tracking-tight text-slate-100">Find Salons & Master Stylists</h1>
+          <p className="text-xs text-slate-400 mt-0.5">Explore top-rated grooming studios and reserve your chair</p>
         </div>
 
-        <div className="bg-muted/30 rounded-lg p-4">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-lg">
           <form onSubmit={(e) => { e.preventDefault(); handleSearch(searchQuery); }} className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+            <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-amber-400 pointer-events-none" />
             <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search doctors, hospitals, or specialties"
-              className="pl-10 h-12"
+              placeholder="Search studios, fade specialists, or grooming services..."
+              className="pl-11 h-12 bg-slate-950/80 border-slate-700/80 text-slate-100 placeholder:text-slate-500 rounded-xl focus:ring-amber-500/30 focus:border-amber-500 text-sm"
             />
           </form>
         </div>
@@ -108,10 +108,10 @@ const Search = () => {
           />
 
           <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[180px] bg-slate-900 border-slate-800 text-slate-200">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="bg-slate-900 border-slate-800 text-slate-200">
               <SelectItem value="rating">Highest Rated</SelectItem>
               <SelectItem value="name">Name (A-Z)</SelectItem>
             </SelectContent>
@@ -119,19 +119,23 @@ const Search = () => {
         </div>
 
         <Tabs defaultValue="hospitals" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="hospitals">Hospitals ({hospitals.length})</TabsTrigger>
-            <TabsTrigger value="doctors">Doctors ({doctors.length})</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 bg-slate-900 border border-slate-800 text-slate-400">
+            <TabsTrigger value="hospitals" className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 data-[state=active]:font-bold transition-all">
+              Studios & Salons ({hospitals.length})
+            </TabsTrigger>
+            <TabsTrigger value="doctors" className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 data-[state=active]:font-bold transition-all">
+              Stylists & Barbers ({doctors.length})
+            </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="hospitals" className="space-y-4">
+          <TabsContent value="hospitals" className="space-y-4 mt-6">
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
-                <Skeleton key={i} className="h-64 w-full" />
+                <Skeleton key={i} className="h-64 w-full bg-slate-900 border border-slate-800" />
               ))
             ) : hospitals.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No hospitals found matching your criteria</p>
+              <div className="text-center py-12 text-slate-400">
+                <p>No studios found matching your criteria</p>
               </div>
             ) : (
               hospitals.map((hospital) => (

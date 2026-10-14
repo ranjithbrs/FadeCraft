@@ -462,8 +462,13 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-primary mb-2">MediQ</h1>
-          <p className="text-muted-foreground">Your healthcare companion</p>
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-500/20">
+            <span className="text-slate-950 font-black text-xl">FC</span>
+          </div>
+          <h1 className="text-3xl font-black bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 bg-clip-text text-transparent mb-1">
+            FadeCraft
+          </h1>
+          <p className="text-xs text-slate-400">Luxury Barber & Salon Chair Experience</p>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>

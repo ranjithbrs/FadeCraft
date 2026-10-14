@@ -165,151 +165,154 @@ const AppointmentDetail = () => {
 
   return (
     <MainLayout>
-      <div className="container py-6 max-w-4xl">
+      <div className="container py-6 px-4 max-w-4xl mx-auto min-h-screen text-slate-100">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Appointment Details</h1>
-          <Badge className={getStatusColor(appointment.status)}>
-            {appointment.status}
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-slate-100">Chair Pass & Reservation</h1>
+            <p className="text-xs text-slate-400">Show this pass at the salon reception desk</p>
+          </div>
+          <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 text-xs font-bold px-3 py-1">
+            {appointment.status.toUpperCase()}
           </Badge>
         </div>
 
-        {/* Token Card */}
+        {/* VIP Token Card */}
         {appointment.token_number && (
-          <Card className="mb-6 bg-primary/5 border-primary/20">
-            <CardContent className="pt-6">
+          <Card className="mb-6 bg-gradient-to-b from-slate-900 to-slate-950 border border-amber-500/40 shadow-2xl shadow-amber-500/10 rounded-2xl overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+            <CardContent className="pt-6 pb-6">
               <div className="text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <Hash className="h-5 w-5" />
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Token Number
-                  </span>
+                <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-3">
+                  <Hash className="h-3.5 w-3.5" />
+                  <span>VIP CHAIR PASS</span>
                 </div>
-                <div className="text-5xl font-bold text-primary mb-2">
-                  {appointment.token_number}
+                <div className="text-6xl font-black bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 bg-clip-text text-transparent mb-2 tracking-tight">
+                  #{appointment.token_number}
                 </div>
-                {appointment.queue_position && (
-                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span>Position in queue: {appointment.queue_position}</span>
+                <div className="flex items-center justify-center gap-3 text-xs text-slate-300">
+                  <div className="flex items-center gap-1 text-amber-300">
+                    <Users className="h-3.5 w-3.5" />
+                    <span>Queue Position: {appointment.queue_position || 1}</span>
                   </div>
-                )}
+                  <span className="text-slate-600">&bull;</span>
+                  <div className="flex items-center gap-1 text-slate-400">
+                    <Clock className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Est. wait: ~10 mins</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Appointment Information */}
-        <Card className="mb-6">
+        {/* Reservation Information */}
+        <Card className="mb-6 bg-slate-900 border border-slate-800 rounded-2xl">
           <CardHeader>
-            <CardTitle>Appointment Information</CardTitle>
+            <CardTitle className="text-slate-100 text-base font-bold">Reservation Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
+              <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+                <Calendar className="h-4 w-4 text-amber-400" />
+              </div>
               <div>
-                <p className="text-sm font-medium">Date</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs font-semibold text-slate-400">Date</p>
+                <p className="text-sm font-medium text-slate-100">
                   {format(new Date(appointment.appointment_date), "PPP")}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Clock className="h-5 w-5 text-muted-foreground" />
+              <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-amber-400" />
+              </div>
               <div>
-                <p className="text-sm font-medium">Time</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs font-semibold text-slate-400">Time</p>
+                <p className="text-sm font-medium text-slate-100">
                   {appointment.appointment_time}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <AlertCircle className="h-5 w-5 text-muted-foreground" />
+              <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+                <AlertCircle className="h-4 w-4 text-amber-400" />
+              </div>
               <div>
-                <p className="text-sm font-medium">Type</p>
-                <p className="text-sm text-muted-foreground capitalize">
-                  {appointment.appointment_type}
+                <p className="text-xs font-semibold text-slate-400">Service Category</p>
+                <p className="text-sm font-medium text-slate-100 capitalize">
+                  {appointment.appointment_type || "Signature Styling"}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Doctor Information */}
-        <Card className="mb-6">
+        {/* Stylist Information */}
+        <Card className="mb-6 bg-slate-900 border border-slate-800 rounded-2xl">
           <CardHeader>
-            <CardTitle>Doctor Information</CardTitle>
+            <CardTitle className="text-slate-100 text-base font-bold">Master Stylist</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-start gap-4">
-              {doctor.photo && (
+              {doctor.photo ? (
                 <img
                   src={doctor.photo}
                   alt={doctor.name}
-                  className="w-20 h-20 rounded-lg object-cover"
+                  className="w-16 h-16 rounded-xl object-cover border border-slate-700"
                 />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-bold text-xl">
+                  FC
+                </div>
               )}
               <div className="flex-1">
-                <h3 className="font-semibold text-lg">{doctor.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {doctor.qualification}
+                <h3 className="font-bold text-base text-slate-100">{doctor.name}</h3>
+                <p className="text-xs text-amber-400 font-semibold mt-0.5">
+                  {doctor.specialization || "Fade Specialist"}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  {doctor.specialization}
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {doctor.experience} years experience
+                <p className="text-xs text-slate-400 mt-1">
+                  {doctor.experience || 5}+ years master grooming experience
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Hospital Information */}
-        <Card className="mb-6">
+        {/* Studio Information */}
+        <Card className="mb-6 bg-slate-900 border border-slate-800 rounded-2xl">
           <CardHeader>
-            <CardTitle>Hospital Information</CardTitle>
+            <CardTitle className="text-slate-100 text-base font-bold">Studio Location</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <h3 className="font-semibold">{hospital.name}</h3>
+              <h3 className="font-bold text-slate-100 text-sm">{hospital.name}</h3>
             </div>
             <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
+              <MapPin className="h-4 w-4 text-amber-400 mt-0.5" />
               <div>
-                <p className="text-sm">{hospital.address}</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-slate-300">{hospital.address}</p>
+                <p className="text-xs text-slate-500">
                   {hospital.city}, {hospital.state} - {hospital.pincode}
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Phone className="h-5 w-5 text-muted-foreground" />
-              <p className="text-sm">{hospital.phone}</p>
-            </div>
+            {hospital.phone && (
+              <div className="flex items-center gap-3">
+                <Phone className="h-4 w-4 text-amber-400" />
+                <p className="text-xs text-slate-300">{hospital.phone}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
-
-        {/* Special Instructions */}
-        {appointment.special_instructions && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Special Instructions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm">{appointment.special_instructions}</p>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Action Buttons */}
         <div className="flex gap-4 mb-6">
           <Button
-            variant="outline"
-            className="flex-1"
+            className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20"
             onClick={handleDownloadPDF}
           >
             <Download className="h-4 w-4 mr-2" />
-            Download Receipt
+            Download Digital VIP Pass (PDF)
           </Button>
         </div>
 

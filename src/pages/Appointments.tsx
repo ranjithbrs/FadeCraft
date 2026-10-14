@@ -60,27 +60,30 @@ const Appointments = () => {
 
   return (
     <MainLayout>
-      <div className="container py-6">
+      <div className="container py-6 px-4 max-w-4xl mx-auto min-h-screen text-slate-100">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">My Appointments</h1>
-          <Button onClick={() => navigate("/search")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Book New
+          <div>
+            <h1 className="text-2xl font-black tracking-tight text-slate-100">My Chair Passes</h1>
+            <p className="text-xs text-slate-400 mt-0.5">Track your live queue position and grooming passes</p>
+          </div>
+          <Button onClick={() => navigate("/search")} className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20">
+            <Plus className="h-4 w-4 mr-1.5" />
+            Book a Chair
           </Button>
         </div>
 
         <Tabs defaultValue="upcoming" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="upcoming" className="relative">
-              Upcoming
+          <TabsList className="grid w-full grid-cols-3 bg-slate-900 border border-slate-800 text-slate-400">
+            <TabsTrigger value="upcoming" className="relative data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 data-[state=active]:font-bold transition-all">
+              Active Passes
               {filteredAppointments.upcoming.length > 0 && (
-                <span className="ml-2 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
+                <span className="ml-2 bg-slate-950 text-amber-300 text-xs px-1.5 py-0.5 rounded-full font-bold">
                   {filteredAppointments.upcoming.length}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="past">Past</TabsTrigger>
-            <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
+            <TabsTrigger value="past" className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 data-[state=active]:font-bold transition-all">Past Cuts</TabsTrigger>
+            <TabsTrigger value="cancelled" className="data-[state=active]:bg-amber-500 data-[state=active]:text-slate-950 data-[state=active]:font-bold transition-all">Cancelled</TabsTrigger>
           </TabsList>
 
           {isLoading ? (

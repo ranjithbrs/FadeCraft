@@ -1,32 +1,47 @@
-# Welcome to your Lovable project
+# 💈 FadeCraft — Luxury Barber & Salon Queue Experience
 
-## Project info
+> **"Skip the waiting room. Arrive when your barber's chair is ready."**
 
-**URL**: https://mediq-web-delta.vercel.app/auth
+FadeCraft is a modern Progressive Web App (PWA) and Android application developed to eliminate waiting time in barbershops, hair salons, and luxury grooming studios through smart chair pre-booking and real-time digital queue management.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🌟 Key Highlights
 
-**Use Lovable**
+- ✂️ **Real-Time Chair Queue**: Live queue position tracking (`Chair #2 • 1 person ahead • Est. wait: 12 mins`).
+- 🎟️ **Digital VIP Pass**: Downloadable Apple Wallet-style PDF grooming pass with QR verification.
+- 💈 **Interactive Service Menu**: Signature Skin Fades, Royal Beard Sculpt, Charcoal Facials, and Hair Spa with transparent pricing and time durations.
+- 💳 **Seamless Razorpay Payments**: Instant pre-payment or pay-at-salon via UPI (GPay, PhonePe), Cards, and Netbanking.
+- 👨‍🎨 **Stylist & Studio Portal**: Master Stylist dashboard with live chair lineup, "Call to Chair" trigger, and client grooming notes.
+- 📱 **Cross-Platform**: Built with React + TypeScript + Capacitor for web and Android native app experience.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/47f15879-ce27-4d6c-986f-a119768cfc32) and start prompting.
+---
 
-Changes made via Lovable will be committed automatically to this repo.
+## 🛠️ Tech Stack
 
-MediQ is a Progressive Web App (PWA) developed to simplify and modernize the outpatient (OP) process in healthcare systems.
-The main goal of MediQ is to reduce waiting time, avoid overcrowding, and make OP registration easier for patients through a digital solution.
+- **Frontend**: React 18, TypeScript, Vite, TailwindCSS, shadcn/ui, Lucide Icons
+- **Backend & Auth**: Supabase (PostgreSQL, Realtime DB, Auth, Edge Functions)
+- **Payment Processing**: Razorpay API & Webhooks
+- **PDF Generation**: jsPDF
+- **Mobile**: Capacitor Android (`@capacitor/android`)
+- **Hosting**: Vercel
 
-🔑 Key Highlights
+---
 
-📱 Patients can pre-register and pre-book OP tokens online
+## 🚀 Getting Started
 
-⏳ Reduces long waiting queues in hospitals
+```bash
+# Clone the repository
+git clone https://github.com/ranjithbrs/FadeCraft.git
 
-🌐 Works as a Progressive Web App (PWA) – accessible on mobile & web
+# Install dependencies
+npm install
 
-🧾 Simple, user-friendly interface for faster registration
+# Start development server
+npm run dev
+```
 
-🏥 Designed with real hospital workflow problems in mind
+---
 
-This project reflects my interest in using technology to create impactful and user-centric solutions, especially in the healthcare domain.
+## 👨‍💻 Developer
+Developed with passion by **Ranjith B** ([@ranjithbrs](https://github.com/ranjithbrs)).

@@ -168,10 +168,10 @@ export const SearchBar = () => {
   };
 
   return (
-    <div className="rounded-xl bg-white shadow-lg border border-gray-100" ref={wrapperRef}>
-      <form onSubmit={handleSubmit} className="relative px-4 py-3">
+    <div className="rounded-2xl bg-slate-900 border border-slate-800 shadow-xl shadow-black/40" ref={wrapperRef}>
+      <form onSubmit={handleSubmit} className="relative px-3 py-2">
         {/* Search icon */}
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400 pointer-events-none z-10" />
+        <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-amber-400 pointer-events-none z-10" />
 
         <input
           type="text"
@@ -179,8 +179,8 @@ export const SearchBar = () => {
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Search doctors, hospitals, or speci..."
-          className="w-full pl-11 pr-12 h-12 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary shadow-sm"
+          placeholder="Search barbers, studios, fade masters..."
+          className="w-full pl-11 pr-12 h-12 rounded-xl border border-slate-700/80 bg-slate-950/80 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 shadow-inner"
           autoComplete="off"
         />
 
