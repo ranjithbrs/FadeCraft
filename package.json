@@ -7,8 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "test": "node --test tests/fadecraft-test-suite.mjs tests/postgres-authorization.test.mjs",
+    "test": "node --test tests/fadecraft-test-suite.mjs tests/postgres-authorization.test.mjs tests/fadecraft-lifecycle-e2e.test.mjs",
     "test:db": "node --test tests/postgres-authorization.test.mjs",
+    "test:e2e": "node --test tests/fadecraft-lifecycle-e2e.test.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
