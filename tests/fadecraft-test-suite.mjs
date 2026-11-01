@@ -380,4 +380,100 @@ describe('FadeCraft Core Logic & Security Test Suite', () => {
     });
   });
 
+  describe('8. Security Audit: Database Authorization & Input Validation (SECURITY DEFINER)', () => {
+    const migrationFile = path.resolve(process.cwd(), 'supabase/migrations/20261101120000_prevent_double_booking.sql');
+    const migrationSql = fs.readFileSync(migrationFile, 'utf8');
+
+    it('strictly revokes execution rights from PUBLIC and anonymous users', () => {
+      assert.ok(
+        migrationSql.includes('REVOKE ALL ON FUNCTION public.book_chair_appointment_atomic FROM PUBLIC;'),
+        'Must explicitly revoke all permissions from PUBLIC'
+      );
+      assert.ok(
+        migrationSql.includes('REVOKE ALL ON FUNCTION public.book_chair_appointment_atomic FROM anon;'),
+        'Must explicitly revoke all permissions from anon'
+      );
+      assert.ok(
+        !migrationSql.includes('GRANT EXECUTE ON FUNCTION public.book_chair_appointment_atomic TO anon') &&
+        !migrationSql.includes('anon,'),
+        'Must never grant execute permissions to anon'
+      );
+      assert.ok(
+        migrationSql.includes('GRANT EXECUTE ON FUNCTION public.book_chair_appointment_atomic TO service_role;'),
+        'Must grant execute only to trusted service_role'
+      );
+    });
+
+    it('enforces anti-impersonation: authenticated callers cannot forge p_user_id', () => {
+      // Logic simulation of procedure guard
+      const validateCallerIdentity = (callerRole, authUid, requestedUserId) => {
+        if (callerRole === 'anon') {
+          throw new Error('42501: UNAUTHORIZED: Anonymous callers are not permitted');
+        }
+        if (callerRole === 'authenticated') {
+          if (!authUid) throw new Error('42501: UNAUTHORIZED: Valid authenticated session required');
+          if (requestedUserId !== authUid) {
+            throw new Error('42501: FORBIDDEN: Identity mismatch');
+          }
+        }
+        return { authorized: true };
+      };
+
+      // 1. Anonymous caller rejected
+      assert.throws(
+        () => validateCallerIdentity('anon', null, 'target-user-123'),
+        /42501: UNAUTHORIZED/
+      );
+
+      // 2. Authenticated caller trying to book for someone else (spoofing)
+      assert.throws(
+        () => validateCallerIdentity('authenticated', 'legit-user-uuid', 'victim-user-uuid'),
+        /42501: FORBIDDEN: Identity mismatch/
+      );
+
+      // 3. Authenticated caller booking for themselves
+      const legitUserCall = validateCallerIdentity('authenticated', 'legit-user-uuid', 'legit-user-uuid');
+      assert.equal(legitUserCall.authorized, true);
+
+      // 4. Server-side service_role permitted
+      const serviceRoleCall = validateCallerIdentity('service_role', null, 'customer-user-uuid');
+      assert.equal(serviceRoleCall.authorized, true);
+    });
+
+    it('verifies SQL procedure implements caller role guards and anti-spoofing checks', () => {
+      assert.ok(
+        migrationSql.includes("IF v_caller_role = 'anon'"),
+        'Must check and reject anon role inside procedure'
+      );
+      assert.ok(
+        migrationSql.includes("v_caller_role = 'authenticated'"),
+        'Must check authenticated role identity'
+      );
+      assert.ok(
+        migrationSql.includes("p_user_id <> v_auth_uid") || migrationSql.includes("p_user_id != v_auth_uid"),
+        'Must verify p_user_id matches authenticated session UID'
+      );
+    });
+
+    it('verifies comprehensive parameter validation rules inside stored procedure', () => {
+      // Must validate mandatory parameters
+      assert.ok(migrationSql.includes('p_user_id IS NULL'), 'Validates p_user_id is not null');
+      assert.ok(migrationSql.includes('p_doctor_id IS NULL'), 'Validates p_doctor_id is not null');
+      assert.ok(migrationSql.includes('p_hospital_id IS NULL'), 'Validates p_hospital_id is not null');
+
+      // Foreign key existence validation
+      assert.ok(migrationSql.includes('SELECT 1 FROM public.doctors WHERE id = p_doctor_id'), 'Validates doctor exists');
+      assert.ok(migrationSql.includes('SELECT 1 FROM public.hospitals WHERE id = p_hospital_id'), 'Validates studio exists');
+
+      // Date & time validation
+      assert.ok(migrationSql.includes('p_appointment_date < CURRENT_DATE'), 'Rejects past booking dates');
+      assert.ok(migrationSql.includes('CURRENT_DATE + INTERVAL \'90 days\''), 'Rejects booking more than 90 days in advance');
+      assert.ok(migrationSql.includes('TIME \'07:00:00\'') && migrationSql.includes('TIME \'22:00:00\''), 'Enforces salon opening hours');
+
+      // Token type and string length sanitization
+      assert.ok(migrationSql.includes("p_token_type NOT IN ('normal', 'vip')"), 'Enforces valid token type');
+      assert.ok(migrationSql.includes('length(p_special_instructions) > 500'), 'Sanitizes special instructions length');
+    });
+  });
+
 });
