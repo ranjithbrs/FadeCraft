@@ -36,44 +36,48 @@ export const generateAppointmentPDF = (
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   
-  // Colors
-  const primaryColor: [number, number, number] = [37, 99, 235]; // #2563eb
+  // Luxury Theme Colors (Obsidian & Champagne Gold)
+  const darkBgColor: [number, number, number] = [15, 23, 42]; // #0f172a
+  const goldColor: [number, number, number] = [245, 158, 11]; // #f59e0b
   const textColor: [number, number, number] = [26, 26, 26];
-  const mutedColor: [number, number, number] = [107, 114, 128];
+  const mutedColor: [number, number, number] = [100, 116, 139];
   const successColor: [number, number, number] = [16, 185, 129];
   
   let yPos = 20;
   
   // Header
-  doc.setFillColor(...primaryColor);
-  doc.rect(0, 0, pageWidth, 50, "F");
+  doc.setFillColor(...darkBgColor);
+  doc.rect(0, 0, pageWidth, 52, "F");
   
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(28);
+  doc.setTextColor(...goldColor);
+  doc.setFontSize(26);
   doc.setFont("helvetica", "bold");
-  doc.text("MediQ", pageWidth / 2, 25, { align: "center" });
+  doc.text("FADECRAFT", pageWidth / 2, 24, { align: "center" });
   
-  doc.setFontSize(14);
+  doc.setTextColor(241, 245, 249);
+  doc.setFontSize(12);
   doc.setFont("helvetica", "normal");
-  doc.text("Appointment Confirmation", pageWidth / 2, 38, { align: "center" });
+  doc.text("VIP Chair Reservation & Digital Pass", pageWidth / 2, 38, { align: "center" });
   
   yPos = 65;
   
   // Status Badge
-  const statusText = appointment.status.toUpperCase();
-  const statusWidth = doc.getTextWidth(statusText) + 16;
+  const statusText = (appointment.status || "CONFIRMED").toUpperCase();
+  const statusWidth = doc.getTextWidth(statusText) + 20;
   const statusX = (pageWidth - statusWidth) / 2;
   
   if (appointment.status === "confirmed" || appointment.status === "scheduled") {
-    doc.setFillColor(...successColor);
+    doc.setFillColor(...goldColor);
+    doc.setTextColor(15, 23, 42);
   } else if (appointment.status === "cancelled") {
     doc.setFillColor(239, 68, 68);
+    doc.setTextColor(255, 255, 255);
   } else {
     doc.setFillColor(...mutedColor);
+    doc.setTextColor(255, 255, 255);
   }
   
   doc.roundedRect(statusX, yPos - 6, statusWidth, 12, 6, 6, "F");
-  doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
   doc.text(statusText, pageWidth / 2, yPos + 2, { align: "center" });
@@ -82,38 +86,44 @@ export const generateAppointmentPDF = (
   
   // Token Number (if available)
   if (appointment.token_number) {
-    doc.setFillColor(247, 250, 252);
-    doc.roundedRect(20, yPos, pageWidth - 40, 45, 5, 5, "F");
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(...goldColor);
+    doc.roundedRect(20, yPos, pageWidth - 40, 48, 5, 5, "FD");
     
     doc.setTextColor(...mutedColor);
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "normal");
-    doc.text("TOKEN NUMBER", pageWidth / 2, yPos + 12, { align: "center" });
-    
-    doc.setTextColor(...primaryColor);
-    doc.setFontSize(36);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(`#${appointment.token_number}`, pageWidth / 2, yPos + 35, { align: "center" });
+    doc.text("VIP CHAIR TOKEN NUMBER", pageWidth / 2, yPos + 12, { align: "center" });
     
-    yPos += 55;
+    doc.setTextColor(...darkBgColor);
+    doc.setFontSize(34);
+    doc.setFont("helvetica", "bold");
+    doc.text(`#${appointment.token_number}`, pageWidth / 2, yPos + 33, { align: "center" });
+    
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...mutedColor);
+    doc.text("Present this pass at front desk for expedited seating", pageWidth / 2, yPos + 43, { align: "center" });
+    
+    yPos += 58;
   }
   
   // Appointment Details Section
   doc.setTextColor(...textColor);
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text("Appointment Details", 20, yPos);
-  yPos += 10;
+  doc.text("Reservation Details", 20, yPos);
+  yPos += 8;
   
-  doc.setDrawColor(229, 231, 235);
+  doc.setDrawColor(226, 232, 240);
   doc.line(20, yPos, pageWidth - 20, yPos);
   yPos += 10;
   
   const appointmentDetails = [
     { label: "Date", value: format(new Date(appointment.appointment_date), "EEEE, MMMM d, yyyy") },
-    { label: "Time", value: appointment.appointment_time },
-    { label: "Type", value: appointment.appointment_type.charAt(0).toUpperCase() + appointment.appointment_type.slice(1) },
-    { label: "Booking ID", value: appointment.id.slice(0, 8).toUpperCase() },
+    { label: "Time Slot", value: appointment.appointment_time },
+    { label: "Service Style", value: (appointment.appointment_type || "Signature Styling").toUpperCase() },
+    { label: "Reservation ID", value: appointment.id.slice(0, 8).toUpperCase() },
   ];
   
   appointmentDetails.forEach((item) => {
@@ -123,30 +133,30 @@ export const generateAppointmentPDF = (
     doc.text(item.label, 20, yPos);
     
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...textColor);
     doc.text(item.value, pageWidth - 20, yPos, { align: "right" });
-    yPos += 10;
+    yPos += 9;
   });
   
-  yPos += 10;
+  yPos += 8;
   
-  // Doctor Details Section
+  // Master Stylist Details Section
   doc.setTextColor(...textColor);
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text("Doctor Details", 20, yPos);
-  yPos += 10;
+  doc.text("Master Stylist Details", 20, yPos);
+  yPos += 8;
   
-  doc.setDrawColor(229, 231, 235);
+  doc.setDrawColor(226, 232, 240);
   doc.line(20, yPos, pageWidth - 20, yPos);
   yPos += 10;
   
   const doctorDetails = [
-    { label: "Doctor", value: doctor.name },
-    { label: "Specialization", value: doctor.specialization },
-    { label: "Qualification", value: doctor.qualification },
-    { label: "Consultation Fee", value: `₹${doctor.consultation_fee.toFixed(2)}` },
+    { label: "Stylist", value: doctor.name },
+    { label: "Specialty", value: doctor.specialization || "Fade & Beard Architecture" },
+    { label: "Experience", value: doctor.qualification || "Master Barber" },
+    { label: "Service Rate", value: `INR ${Number(doctor.consultation_fee || 0).toFixed(2)}` },
   ];
   
   doctorDetails.forEach((item) => {
@@ -156,75 +166,64 @@ export const generateAppointmentPDF = (
     doc.text(item.label, 20, yPos);
     
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setTextColor(...textColor);
     doc.text(item.value, pageWidth - 20, yPos, { align: "right" });
-    yPos += 10;
+    yPos += 9;
   });
   
-  yPos += 10;
+  yPos += 8;
   
-  // Hospital Details Section
+  // Hospital/Salon Details Section
   doc.setTextColor(...textColor);
-  doc.setFontSize(14);
+  doc.setFontSize(13);
   doc.setFont("helvetica", "bold");
-  doc.text("Hospital Details", 20, yPos);
-  yPos += 10;
+  doc.text("Salon Studio Location", 20, yPos);
+  yPos += 8;
   
-  doc.setDrawColor(229, 231, 235);
+  doc.setDrawColor(226, 232, 240);
   doc.line(20, yPos, pageWidth - 20, yPos);
   yPos += 10;
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...mutedColor);
-  doc.text("Hospital", 20, yPos);
+  doc.text("Studio", 20, yPos);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
   doc.setTextColor(...textColor);
   doc.text(hospital.name, pageWidth - 20, yPos, { align: "right" });
-  yPos += 10;
+  yPos += 9;
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...mutedColor);
   doc.text("Address", 20, yPos);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
   doc.setTextColor(...textColor);
   const fullAddress = `${hospital.address}, ${hospital.city}`;
   doc.text(fullAddress, pageWidth - 20, yPos, { align: "right" });
-  yPos += 10;
+  yPos += 9;
   
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...mutedColor);
-  doc.text("Location", 20, yPos);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...textColor);
-  doc.text(`${hospital.state} - ${hospital.pincode}`, pageWidth - 20, yPos, { align: "right" });
-  yPos += 10;
-  
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(...mutedColor);
-  doc.text("Phone", 20, yPos);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...textColor);
-  doc.text(hospital.phone, pageWidth - 20, yPos, { align: "right" });
-  yPos += 15;
+  if (hospital.phone) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(...mutedColor);
+    doc.text("Contact", 20, yPos);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...textColor);
+    doc.text(hospital.phone, pageWidth - 20, yPos, { align: "right" });
+    yPos += 12;
+  }
   
   // Special Instructions (if any)
   if (appointment.special_instructions) {
     doc.setTextColor(...textColor);
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
-    doc.text("Special Instructions", 20, yPos);
-    yPos += 10;
+    doc.text("Notes / Customizations", 20, yPos);
+    yPos += 8;
     
-    doc.setDrawColor(229, 231, 235);
+    doc.setDrawColor(226, 232, 240);
     doc.line(20, yPos, pageWidth - 20, yPos);
     yPos += 10;
     
@@ -238,16 +237,16 @@ export const generateAppointmentPDF = (
   
   // Footer
   const footerY = doc.internal.pageSize.getHeight() - 25;
-  doc.setDrawColor(229, 231, 235);
+  doc.setDrawColor(226, 232, 240);
   doc.line(20, footerY, pageWidth - 20, footerY);
   
   doc.setTextColor(...mutedColor);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Thank you for choosing MediQ", pageWidth / 2, footerY + 10, { align: "center" });
-  doc.text(`Generated on ${format(new Date(), "PPP 'at' p")}`, pageWidth / 2, footerY + 18, { align: "center" });
+  doc.text("Thank you for choosing FadeCraft - Luxury Barber & Salon Experience", pageWidth / 2, footerY + 10, { align: "center" });
+  doc.text(`Issued digitally on ${format(new Date(), "PPP 'at' p")}`, pageWidth / 2, footerY + 18, { align: "center" });
   
   // Save the PDF
-  const fileName = `MediQ-Appointment-${appointment.id.slice(0, 8)}.pdf`;
+  const fileName = `FadeCraft-VIP-Pass-${appointment.token_number || appointment.id.slice(0, 8)}.pdf`;
   doc.save(fileName);
 };

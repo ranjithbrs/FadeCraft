@@ -18,11 +18,11 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "robots.txt"],
       manifest: {
-        name: "MediQ - Medical Appointment Booking",
-        short_name: "MediQ",
-        description: "Book medical appointments and manage your healthcare digitally",
-        theme_color: "#2563eb",
-        background_color: "#ffffff",
+        name: "FadeCraft - Luxury Barber & Salon Experience",
+        short_name: "FadeCraft",
+        description: "Book VIP chairs, master stylist appointments, and track your live queue status in real time.",
+        theme_color: "#0f172a",
+        background_color: "#090d16",
         display: "standalone",
         icons: [
           {

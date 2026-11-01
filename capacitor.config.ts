@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.mediq.app',
-  appName: 'MediQ',
+  appId: 'com.fadecraft.app',
+  appName: 'FadeCraft',
   webDir: 'dist',
   plugins: {
     StatusBar: {

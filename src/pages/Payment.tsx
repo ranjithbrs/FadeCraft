@@ -21,8 +21,10 @@ interface BookingData {
   appointmentDate: string;
   appointmentTime: string;
   appointmentType: string;
+  tokenType?: string;
   specialInstructions: string;
   consultationFee: number;
+  priorityFee?: number;
 }
 
 declare global {
@@ -192,14 +194,16 @@ const Payment = () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const authHeader = sessionData?.session?.access_token ? `Bearer ${sessionData.session.access_token}` : undefined;
 
+      const totalFee = bookingData.consultationFee + (bookingData.priorityFee || 0);
+
       // Create Razorpay order with auth header if available
       const { data: orderData, error: orderError } = await supabase.functions.invoke(
         'create-razorpay-order',
         {
           body: {
-            amount: bookingData.consultationFee,
+            amount: totalFee,
             currency: 'INR',
-            receipt: `apt_${Date.now()}`,
+            receipt: `pass_${Date.now()}`,
             notes: {
               appointmentData: JSON.stringify({
                 doctor_id: bookingData.doctorId,
@@ -207,8 +211,9 @@ const Payment = () => {
                 appointment_date: bookingData.appointmentDate,
                 appointment_time: bookingData.appointmentTime,
                 appointment_type: bookingData.appointmentType,
+                token_type: bookingData.tokenType || 'normal',
                 special_instructions: bookingData.specialInstructions,
-                consultation_fee: bookingData.consultationFee,
+                consultation_fee: totalFee,
               })
             },
           },
@@ -237,25 +242,24 @@ const Payment = () => {
       console.log('Order created successfully:', orderData);
       const order = orderData.order;
 
-      // Initialize Razorpay checkout
-      // NOTE: Must match RAZORPAY_KEY_ID in Supabase edge function secrets exactly
-      const keyId = 'rzp_test_TDjfmTJ4PqFq2Z';
+      // Initialize Razorpay checkout with environment key
+      const keyId = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TDjfmTJ4PqFq2Z';
       console.log('Initializing Razorpay with key:', keyId);
 
       const isNative = Capacitor.isNativePlatform();
 
       const options: any = {
-        key: keyId, // fallback test key
+        key: keyId,
         amount: order.amount,
         currency: order.currency,
-        name: 'MediQ',
-        description: `Appointment with ${bookingData.doctorName}`,
+        name: 'FadeCraft',
+        description: `VIP Chair Pass — ${bookingData.doctorName}`,
         order_id: order.id,
         prefill: {
           email: user.email,
         },
         theme: {
-          color: "#2563EB",
+          color: "#f59e0b",
         },
       };
 
@@ -274,8 +278,9 @@ const Payment = () => {
                   appointment_date: bookingData.appointmentDate,
                   appointment_time: bookingData.appointmentTime,
                   appointment_type: bookingData.appointmentType,
+                  token_type: bookingData.tokenType || 'normal',
                   special_instructions: bookingData.specialInstructions,
-                  consultation_fee: bookingData.consultationFee,
+                  consultation_fee: totalFee,
                 },
               },
             }
@@ -372,31 +377,40 @@ const Payment = () => {
 
   return (
     <MainLayout>
-      <div className="container py-6 max-w-4xl">
-        <h1 className="text-2xl font-bold mb-6">Payment</h1>
+      <div className="container py-6 px-4 max-w-4xl mx-auto text-slate-100 min-h-screen">
+        <div className="mb-6">
+          <h1 className="text-2xl font-black tracking-tight text-slate-100">VIP Chair Checkout</h1>
+          <p className="text-xs text-slate-400 mt-0.5">Confirm your grooming reservation and secure your chair</p>
+        </div>
 
         {/* Booking Summary */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-slate-900 border border-slate-800 rounded-2xl shadow-xl shadow-black/40">
           <CardHeader>
-            <CardTitle>Booking Summary</CardTitle>
+            <CardTitle className="text-slate-100 text-base font-bold">Reservation Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
-              <User className="h-5 w-5 text-muted-foreground" />
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                <User className="h-4 w-4 text-amber-400" />
+              </div>
               <div>
-                <p className="font-medium">{bookingData.doctorName}</p>
-                <p className="text-sm text-muted-foreground">{bookingData.doctorSpecialization}</p>
+                <p className="font-bold text-sm text-slate-100">{bookingData.doctorName}</p>
+                <p className="text-xs text-amber-400/90 font-medium">{bookingData.doctorSpecialization}</p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <Building2 className="h-5 w-5 text-muted-foreground" />
-              <p className="text-sm">{bookingData.hospitalName}</p>
+              <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+                <Building2 className="h-4 w-4 text-amber-400" />
+              </div>
+              <p className="text-xs text-slate-300">{bookingData.hospitalName}</p>
             </div>
 
             <div className="flex items-center gap-3">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <p className="text-sm">
+              <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+                <Calendar className="h-4 w-4 text-amber-400" />
+              </div>
+              <p className="text-xs text-slate-300">
                 {new Date(bookingData.appointmentDate).toLocaleDateString('en-IN', {
                   weekday: 'long',
                   year: 'numeric',
@@ -407,60 +421,75 @@ const Payment = () => {
             </div>
 
             <div className="flex items-center gap-3">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              <p className="text-sm">{bookingData.appointmentTime}</p>
+              <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-amber-400" />
+              </div>
+              <p className="text-xs text-slate-300 font-semibold">{bookingData.appointmentTime}</p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground">Type:</span>
-              <span className="text-sm font-medium capitalize">{bookingData.appointmentType}</span>
+            <div className="flex items-center gap-3 pt-2 border-t border-slate-800/80">
+              <span className="text-xs text-slate-400">Service:</span>
+              <span className="text-xs font-semibold text-amber-300 capitalize">{bookingData.appointmentType?.replace('_', ' ')}</span>
+              {bookingData.tokenType && (
+                <span className="ml-auto text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                  {bookingData.tokenType} Pass
+                </span>
+              )}
             </div>
 
             {bookingData.specialInstructions && (
-              <div className="pt-4 border-t">
-                <p className="text-sm text-muted-foreground mb-1">Special Instructions:</p>
-                <p className="text-sm">{bookingData.specialInstructions}</p>
+              <div className="pt-3 border-t border-slate-800/80">
+                <p className="text-xs text-slate-400 mb-1">Styling Notes:</p>
+                <p className="text-xs text-slate-300 italic">{bookingData.specialInstructions}</p>
               </div>
             )}
           </CardContent>
         </Card>
 
         {/* Payment Details */}
-        <Card className="mb-6">
+        <Card className="mb-6 bg-slate-900 border border-slate-800 rounded-2xl">
           <CardHeader>
-            <CardTitle>Payment Details</CardTitle>
+            <CardTitle className="text-slate-100 text-base font-bold">Payment Details</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Consultation Fee</span>
-                <span className="font-medium">₹{bookingData.consultationFee.toFixed(2)}</span>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-400">Standard Cut Fee</span>
+                <span className="font-semibold text-slate-200">₹{bookingData.consultationFee.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between items-center pt-3 border-t">
-                <span className="font-semibold">Total Amount</span>
-                <span className="text-xl font-bold text-primary">₹{bookingData.consultationFee.toFixed(2)}</span>
+              {bookingData.priorityFee && bookingData.priorityFee > 0 ? (
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-amber-400">Priority Pass Premium</span>
+                  <span className="font-semibold text-amber-400">+₹{bookingData.priorityFee.toFixed(2)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-between items-center pt-3 border-t border-slate-800">
+                <span className="font-bold text-sm text-slate-100">Total Amount</span>
+                <span className="text-xl font-black bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 bg-clip-text text-transparent">
+                  ₹{(bookingData.consultationFee + (bookingData.priorityFee || 0)).toFixed(2)}
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Action Buttons */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 pb-8">
           <Button
             variant="outline"
-            className="flex-1"
+            className="flex-1 bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800 hover:text-white"
             onClick={() => navigate(-1)}
             disabled={isProcessing}
           >
             Cancel
           </Button>
           <Button
-            className="flex-1"
+            className="flex-1 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold shadow-lg shadow-amber-500/20"
             onClick={handlePayment}
             disabled={isProcessing}
           >
             <CreditCard className="h-4 w-4 mr-2" />
-            {isProcessing ? "Processing..." : "Pay Now"}
+            {isProcessing ? "Connecting Gateway..." : "Pay via Razorpay"}
           </Button>
         </div>
 

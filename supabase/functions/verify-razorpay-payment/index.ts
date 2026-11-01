@@ -18,6 +18,9 @@ serve(async (req) => {
     
     let razorpay_order_id, razorpay_payment_id, razorpay_signature, appointmentData;
     let isRedirect = false;
+    let isWebhook = false;
+
+    const webhookSignature = req.headers.get('x-razorpay-signature');
 
     if (contentType.includes('application/x-www-form-urlencoded')) {
       // Handle POST redirect from Razorpay
@@ -25,19 +28,36 @@ serve(async (req) => {
       razorpay_order_id = formData.get('razorpay_order_id');
       razorpay_payment_id = formData.get('razorpay_payment_id');
       razorpay_signature = formData.get('razorpay_signature');
-      
-      // For redirects, we need to get appointmentData from long-term storage or 
-      // pass it through Razorpay notes. Since we can't easily pass the whole 
-      // appointmentData object through notes, we'll suggest a simpler flow here.
-      // For now, let's assume it's a JSON request unless we implement the notes extraction.
       isRedirect = true;
     } else {
-      // Handle standard JSON request
+      // Handle JSON request (client invoke or webhook)
       const body = await req.json();
-      razorpay_order_id = body.razorpay_order_id;
-      razorpay_payment_id = body.razorpay_payment_id;
-      razorpay_signature = body.razorpay_signature;
-      appointmentData = body.appointmentData;
+
+      if (webhookSignature || body.event) {
+        // Razorpay Webhook event payload
+        isWebhook = true;
+        console.log(`Received Razorpay webhook event: ${body.event}`);
+        const paymentEntity = body.payload?.payment?.entity;
+        const orderEntity = body.payload?.order?.entity;
+        razorpay_payment_id = paymentEntity?.id;
+        razorpay_order_id = paymentEntity?.order_id || orderEntity?.id;
+        razorpay_signature = webhookSignature;
+
+        if (paymentEntity?.notes?.appointmentData) {
+          try {
+            appointmentData = typeof paymentEntity.notes.appointmentData === 'string'
+              ? JSON.parse(paymentEntity.notes.appointmentData)
+              : paymentEntity.notes.appointmentData;
+          } catch (e) {
+            console.warn('Could not parse webhook appointmentData:', e);
+          }
+        }
+      } else {
+        razorpay_order_id = body.razorpay_order_id;
+        razorpay_payment_id = body.razorpay_payment_id;
+        razorpay_signature = body.razorpay_signature;
+        appointmentData = body.appointmentData;
+      }
     }
     
     console.log('Extracted payment data:', { 
@@ -163,6 +183,45 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
+    // 1. Idempotency Check: Prevent duplicate processing if webhook & client callback both arrive
+    const { data: existingPayment } = await serviceClient
+      .from('payments')
+      .select('id, appointment_id')
+      .eq('razorpay_payment_id', razorpay_payment_id)
+      .maybeSingle();
+
+    if (existingPayment) {
+      console.log('Payment already recorded idempotently:', existingPayment.id);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Payment already processed (idempotent)',
+          payment_id: razorpay_payment_id,
+          appointment_id: existingPayment.appointment_id,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // 2. Double-booking conflict prevention: Check if chair slot is already confirmed
+    const { data: existingSlotBooking } = await serviceClient
+      .from('appointments')
+      .select('id, token_number, status')
+      .eq('doctor_id', appointmentData.doctor_id)
+      .eq('appointment_date', appointmentData.appointment_date)
+      .eq('appointment_time', appointmentData.appointment_time)
+      .in('status', ['scheduled', 'confirmed'])
+      .maybeSingle();
+
+    if (existingSlotBooking) {
+      console.warn(`Conflict detected: Chair slot ${appointmentData.appointment_time} already reserved. Reallocating to next window...`);
+      const [h, m] = (appointmentData.appointment_time || "10:00").split(':').map(Number);
+      const nextMin = (m + 30) % 60;
+      const nextHour = h + Math.floor((m + 30) / 60);
+      appointmentData.appointment_time = `${String(nextHour).padStart(2, '0')}:${String(nextMin).padStart(2, '0')}`;
+      appointmentData.special_instructions = (appointmentData.special_instructions ? appointmentData.special_instructions + " | " : "") + "Slot adjusted automatically to prevent chair conflict.";
+    }
+
     // Get next token number
     const { data: tokenData, error: tokenError } = await serviceClient
       .rpc('get_next_token_number', {
@@ -187,6 +246,7 @@ serve(async (req) => {
         appointment_date: appointmentData.appointment_date,
         appointment_time: appointmentData.appointment_time,
         appointment_type: appointmentData.appointment_type,
+        token_type: appointmentData.token_type || 'normal',
         special_instructions: appointmentData.special_instructions,
         token_number: tokenNumber,
         status: 'confirmed',
@@ -309,20 +369,37 @@ serve(async (req) => {
       // Don't throw - appointment is already created
     }
 
+    if (isWebhook) {
+      console.log('Webhook processed successfully for appointment:', appointment.id);
+      return new Response(
+        JSON.stringify({
+          status: 'ok',
+          received: true,
+          appointment_id: appointment.id,
+          token_number: tokenNumber,
+          payment_id: razorpay_payment_id,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (isRedirect) {
-      // Direct back to the app using custom scheme
-      const redirectUrl = `com.mediq.app://payment-success?payment_id=${razorpay_payment_id}&order_id=${razorpay_order_id}`;
+      // Direct back to the app using custom scheme with fallback to web
+      const redirectUrl = `com.fadecraft.app://payment-success?payment_id=${razorpay_payment_id}&order_id=${razorpay_order_id}`;
       return new Response(`
         <html>
           <head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-          <body style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif;">
-            <h1 style="color: #059669;">Payment Successful!</h1>
-            <p>Your appointment is confirmed. Returning to app...</p>
+          <body style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; background-color: #090d16; color: #f8fafc;">
+            <h1 style="color: #f59e0b;">FadeCraft VIP Pass Confirmed!</h1>
+            <p style="color: #94a3b8;">Payment verified. Returning to your chair pass...</p>
             <script>
-              window.location.href = '${redirectUrl}';
+              try { window.location.href = '${redirectUrl}'; } catch(e){}
               setTimeout(() => {
-                window.location.href = 'com.mediq.app://appointments';
-              }, 3000);
+                try { window.location.href = 'com.mediq.app://payment-success?payment_id=${razorpay_payment_id}'; } catch(e){}
+              }, 1200);
+              setTimeout(() => {
+                window.location.href = '/appointments';
+              }, 2500);
             </script>
           </body>
         </html>

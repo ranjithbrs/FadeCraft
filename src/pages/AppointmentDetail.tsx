@@ -44,11 +44,39 @@ const AppointmentDetail = () => {
   const [hospital, setHospital] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
+  const [peopleAhead, setPeopleAhead] = useState<number>(0);
+  const [currentlyServing, setCurrentlyServing] = useState<number | null>(null);
 
   useEffect(() => {
-    if (user && id) {
+    if (!user || !id) return;
+
+    fetchAppointmentDetails();
+
+    // Realtime postgres changes listener on appointments
+    const channel = supabase
+      .channel(`live-queue-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "appointments",
+        },
+        () => {
+          fetchAppointmentDetails();
+        }
+      )
+      .subscribe();
+
+    // Polling fallback every 10s
+    const pollInterval = setInterval(() => {
       fetchAppointmentDetails();
-    }
+    }, 10000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(pollInterval);
+    };
   }, [id, user]);
 
   const fetchAppointmentDetails = async () => {
@@ -61,6 +89,37 @@ const AppointmentDetail = () => {
 
       if (appointmentError) throw appointmentError;
       setAppointment(appointmentData);
+
+      // Calculate queue positions
+      if (appointmentData?.token_number && appointmentData?.doctor_id && appointmentData?.appointment_date) {
+        // Count how many people are ahead in scheduled/confirmed status
+        const { count } = await supabase
+          .from("appointments")
+          .select("id", { count: "exact", head: true })
+          .eq("doctor_id", appointmentData.doctor_id)
+          .eq("appointment_date", appointmentData.appointment_date)
+          .lt("token_number", appointmentData.token_number)
+          .in("status", ["scheduled", "confirmed"]);
+
+        setPeopleAhead(count ?? 0);
+
+        // Fetch currently lowest active token
+        const { data: lowestActive } = await supabase
+          .from("appointments")
+          .select("token_number")
+          .eq("doctor_id", appointmentData.doctor_id)
+          .eq("appointment_date", appointmentData.appointment_date)
+          .in("status", ["scheduled", "confirmed"])
+          .order("token_number", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+
+        if (lowestActive?.token_number) {
+          setCurrentlyServing(lowestActive.token_number);
+        } else {
+          setCurrentlyServing(appointmentData.token_number);
+        }
+      }
 
       const { data: doctorData, error: doctorError } = await supabase
         .from("doctors")
@@ -176,28 +235,56 @@ const AppointmentDetail = () => {
           </Badge>
         </div>
 
-        {/* VIP Token Card */}
+        {/* VIP Token Card with Live Queue Status */}
         {appointment.token_number && (
           <Card className="mb-6 bg-gradient-to-b from-slate-900 to-slate-950 border border-amber-500/40 shadow-2xl shadow-amber-500/10 rounded-2xl overflow-hidden relative">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
             <CardContent className="pt-6 pb-6">
               <div className="text-center">
-                <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold mb-3">
-                  <Hash className="h-3.5 w-3.5" />
-                  <span>VIP CHAIR PASS</span>
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <div className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold">
+                    <Hash className="h-3.5 w-3.5" />
+                    <span>{appointment.token_type === 'vip' ? 'VIP FAST-TRACK PASS' : 'CHAIR RESERVATION PASS'}</span>
+                  </div>
+                  <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping mr-0.5" />
+                    <span>LIVE QUEUE</span>
+                  </div>
                 </div>
+
                 <div className="text-6xl font-black bg-gradient-to-r from-amber-200 via-amber-400 to-amber-500 bg-clip-text text-transparent mb-2 tracking-tight">
                   #{appointment.token_number}
                 </div>
-                <div className="flex items-center justify-center gap-3 text-xs text-slate-300">
-                  <div className="flex items-center gap-1 text-amber-300">
-                    <Users className="h-3.5 w-3.5" />
-                    <span>Queue Position: {appointment.queue_position || 1}</span>
+
+                {peopleAhead === 0 ? (
+                  <div className="mb-4 inline-block px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-sm">
+                    ✨ Your chair is ready! Please proceed to the stylist station.
                   </div>
-                  <span className="text-slate-600">&bull;</span>
-                  <div className="flex items-center gap-1 text-slate-400">
-                    <Clock className="h-3.5 w-3.5 text-amber-400" />
-                    <span>Est. wait: ~10 mins</span>
+                ) : (
+                  <div className="mb-4 inline-block px-4 py-1 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 text-xs font-medium">
+                    Stylist is currently attending Chair Token #{currentlyServing || 1}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto text-left">
+                  <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+                    <div className="flex items-center gap-1.5 text-xs text-amber-400 mb-1">
+                      <Users className="h-3.5 w-3.5" />
+                      <span className="font-semibold">Clients Ahead</span>
+                    </div>
+                    <div className="text-xl font-bold text-slate-100">
+                      {peopleAhead} {peopleAhead === 1 ? 'client' : 'clients'}
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+                    <div className="flex items-center gap-1.5 text-xs text-amber-400 mb-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span className="font-semibold">Est. Wait</span>
+                    </div>
+                    <div className="text-xl font-bold text-slate-100">
+                      ~{peopleAhead === 0 ? 0 : Math.max(5, peopleAhead * 20)} mins
+                    </div>
                   </div>
                 </div>
               </div>
