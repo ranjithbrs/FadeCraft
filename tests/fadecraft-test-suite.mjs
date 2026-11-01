@@ -115,6 +115,41 @@ describe('FadeCraft Core Logic & Security Test Suite', () => {
       assert.ok(!verifySignature(orderId, paymentId, 'tampered_bad_signature_123', mockSecret), 'Tampered signature must fail');
     });
 
+    it('strictly verifies edge function rejects missing and invalid signatures without test-mode bypass', () => {
+      const edgeFunctionPath = path.resolve(process.cwd(), 'supabase/functions/verify-razorpay-payment/index.ts');
+      assert.ok(fs.existsSync(edgeFunctionPath), 'verify-razorpay-payment Edge Function must exist');
+
+      const edgeFunctionCode = fs.readFileSync(edgeFunctionPath, 'utf8');
+
+      // 1. Missing signature check
+      assert.ok(
+        edgeFunctionCode.includes('!razorpay_order_id || !razorpay_payment_id || !razorpay_signature'),
+        'Must validate required fields: order_id, payment_id, and signature'
+      );
+      assert.ok(
+        edgeFunctionCode.includes("error: 'Missing payment verification data"),
+        'Must reject with 400 when signature or IDs are missing'
+      );
+
+      // 2. Strict rejection on invalid signature without test mode bypass
+      assert.ok(
+        !edgeFunctionCode.includes('Proceeding for test'),
+        'Test-mode signature mismatch bypass must be completely removed'
+      );
+      assert.ok(
+        !edgeFunctionCode.includes("isTestMode && signatureValid"),
+        'Must not allow test mode to bypass invalid signature'
+      );
+      assert.ok(
+        edgeFunctionCode.includes('if (!signatureValid)'),
+        'Must have strict check on !signatureValid'
+      );
+      assert.ok(
+        edgeFunctionCode.includes("error: 'Payment verification failed - invalid signature'"),
+        'Must reject payment with 400 when signature is invalid'
+      );
+    });
+
     it('handles webhook idempotency by ignoring duplicate processed payments', () => {
       const paymentsDb = new Map();
       paymentsDb.set(paymentId, { id: 'pmt-1001', appointment_id: 'apt-2001', status: 'completed' });

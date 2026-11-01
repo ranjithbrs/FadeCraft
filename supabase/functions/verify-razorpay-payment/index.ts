@@ -67,11 +67,14 @@ serve(async (req) => {
       is_redirect: isRedirect 
     });
 
-    // Validate required fields
+    // Validate required fields: missing signature, order_id, or payment_id must be strictly rejected
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       console.error('Missing payment verification data', { razorpay_order_id, razorpay_payment_id, razorpay_signature });
-      if (isRedirect) return new Response('Payment failed: Missing data', { status: 400 });
-      throw new Error('Missing payment verification data');
+      if (isRedirect) return new Response('Payment failed: Missing verification data', { status: 400 });
+      return new Response(
+        JSON.stringify({ error: 'Missing payment verification data: razorpay_order_id, razorpay_payment_id, and razorpay_signature are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const razorpayKeyId = Deno.env.get('RAZORPAY_KEY_ID');
@@ -161,19 +164,18 @@ serve(async (req) => {
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
 
-    const isTestMode = razorpayKeyId.startsWith('rzp_test_');
+    // Strict cryptographic verification: reject signature mismatches in all environments (both test and live)
     const signatureValid = expectedSignature === razorpay_signature;
 
     if (!signatureValid) {
-      if (isTestMode) {
-        console.warn('Test mode: signature mismatch — check RAZORPAY_KEY_SECRET in Supabase secrets. Proceeding for test.');
-      } else {
-        console.error('LIVE mode: Payment signature verification failed — rejecting');
-        return new Response(
-          JSON.stringify({ error: 'Payment verification failed - invalid signature' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      console.error('Payment signature verification failed — invalid signature');
+      if (isRedirect) {
+        return new Response('Payment verification failed: invalid signature', { status: 400 });
       }
+      return new Response(
+        JSON.stringify({ error: 'Payment verification failed - invalid signature' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log('Payment verified successfully');
