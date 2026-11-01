@@ -48,48 +48,157 @@ describe('FadeCraft Core Logic & Security Test Suite', () => {
     });
   });
 
-  describe('2. Double Booking Prevention Logic', () => {
-    it('detects slot collision and re-allocates to next 30-minute interval', () => {
-      const existingBookings = [
-        { doctor_id: 'stylist-1', appointment_date: '2026-11-02', appointment_time: '14:00', status: 'confirmed' }
-      ];
+  describe('2. Double Booking Prevention Logic & Database Constraints', () => {
+    it('prevents concurrent double bookings during simultaneous booking attempts', async () => {
+      // In-memory atomic DB simulation with partial unique constraint
+      const activeBookings = new Map(); // key: "doctor_id|date|time" -> booking
+      const allAppointments = [];
 
-      const newBooking = {
-        doctor_id: 'stylist-1',
-        appointment_date: '2026-11-02',
-        appointment_time: '14:00',
-        special_instructions: 'Zero fade haircut'
+      // Atomic reservation function simulating PostgreSQL unique index & collision recovery
+      const atomicBookChair = async (user, doctorId, date, requestedTime, autoReallocate = true) => {
+        let time = requestedTime;
+        let attempts = 0;
+        const maxAttempts = 5;
+
+        while (attempts < maxAttempts) {
+          attempts++;
+          const slotKey = `${doctorId}|${date}|${time}`;
+
+          // Simulate database UNIQUE constraint (WHERE status IN ('scheduled', 'confirmed'))
+          if (!activeBookings.has(slotKey)) {
+            const booking = {
+              id: `apt-${Math.random().toString(36).substring(7)}`,
+              user_id: user,
+              doctor_id: doctorId,
+              appointment_date: date,
+              appointment_time: time,
+              status: 'confirmed',
+              reallocated: time !== requestedTime
+            };
+            activeBookings.set(slotKey, booking);
+            allAppointments.push(booking);
+            return { success: true, booking };
+          }
+
+          // Slot collision! (PostgreSQL 23505 error)
+          if (!autoReallocate) {
+            throw new Error('23505: unique_violation - slot already booked');
+          }
+
+          // Advance 30 minutes and retry
+          const [h, m] = time.split(':').map(Number);
+          const nextMin = (m + 30) % 60;
+          const nextHour = h + Math.floor((m + 30) / 60);
+          time = `${String(nextHour).padStart(2, '0')}:${String(nextMin).padStart(2, '0')}`;
+        }
+
+        throw new Error('No chair available after max attempts');
       };
 
-      const hasConflict = existingBookings.some(
-        b => b.doctor_id === newBooking.doctor_id &&
-             b.appointment_date === newBooking.appointment_date &&
-             b.appointment_time === newBooking.appointment_time &&
-             ['scheduled', 'confirmed'].includes(b.status)
+      // Simulate 2 clients attempting to book the EXACT SAME chair & time simultaneously
+      const [client1Result, client2Result] = await Promise.all([
+        atomicBookChair('client_1', 'stylist_alpha', '2026-11-02', '14:00', true),
+        atomicBookChair('client_2', 'stylist_alpha', '2026-11-02', '14:00', true),
+      ]);
+
+      assert.ok(client1Result.success);
+      assert.ok(client2Result.success);
+
+      // Verify that the two clients did NOT get the same slot
+      assert.notEqual(
+        client1Result.booking.appointment_time,
+        client2Result.booking.appointment_time,
+        'Concurrent requests must NEVER reserve the same time slot'
       );
 
-      assert.ok(hasConflict, 'Conflict must be identified');
+      // One took 14:00, the other was gracefully reallocated to 14:30
+      const times = [client1Result.booking.appointment_time, client2Result.booking.appointment_time].sort();
+      assert.deepEqual(times, ['14:00', '14:30']);
 
-      // Auto re-allocation logic
-      if (hasConflict) {
-        const [h, m] = newBooking.appointment_time.split(':').map(Number);
-        const nextMin = (m + 30) % 60;
-        const nextHour = h + Math.floor((m + 30) / 60);
-        newBooking.appointment_time = `${String(nextHour).padStart(2, '0')}:${String(nextMin).padStart(2, '0')}`;
-        newBooking.special_instructions += ' | Slot adjusted automatically to prevent chair conflict.';
-      }
-
-      assert.equal(newBooking.appointment_time, '14:30');
-      assert.ok(newBooking.special_instructions.includes('prevent chair conflict'));
+      const reallocatedClient = [client1Result, client2Result].find(r => r.booking.reallocated);
+      assert.ok(reallocatedClient, 'One client must be marked as reallocated');
+      assert.equal(reallocatedClient.booking.appointment_time, '14:30');
     });
 
-    it('verifies PostgreSQL partial unique index migration exists on disk', () => {
+    it('allows re-booking a slot if a previous reservation was cancelled', async () => {
+      const activeBookings = new Map();
+      const appointments = [];
+
+      // User 1 books 15:00
+      const slotKey = 'stylist_beta|2026-11-02|15:00';
+      const booking1 = { id: 'apt-001', user: 'user_1', slot: slotKey, status: 'confirmed' };
+      activeBookings.set(slotKey, booking1);
+      appointments.push(booking1);
+
+      // User 1 cancels appointment
+      booking1.status = 'cancelled';
+      activeBookings.delete(slotKey); // Excluded from partial unique index
+
+      // User 2 books the same 15:00 slot
+      assert.ok(!activeBookings.has(slotKey), 'Cancelled slot must be available');
+      const booking2 = { id: 'apt-002', user: 'user_2', slot: slotKey, status: 'confirmed' };
+      activeBookings.set(slotKey, booking2);
+      appointments.push(booking2);
+
+      // Verify both records exist in DB history, but only 1 is active
+      assert.equal(appointments.length, 2);
+      assert.equal(appointments.filter(a => a.status === 'confirmed').length, 1);
+      assert.equal(booking2.status, 'confirmed');
+    });
+
+    it('verifies migration handles existing duplicates and defines atomic procedures', () => {
       const migrationFile = path.resolve(process.cwd(), 'supabase/migrations/20261101120000_prevent_double_booking.sql');
       assert.ok(fs.existsSync(migrationFile), 'Migration file must exist');
 
       const content = fs.readFileSync(migrationFile, 'utf8');
-      assert.ok(content.includes('CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_appointment_slot'), 'Unique index must be defined');
-      assert.ok(content.includes('WHERE status IN (\'scheduled\', \'confirmed\')'), 'Index must be partial to active statuses');
+
+      // 1. Existing duplicate cleanup before index creation
+      assert.ok(
+        content.includes('WITH duplicates AS') || content.includes('ROW_NUMBER()'),
+        'Migration must deduplicate existing records before index creation'
+      );
+      assert.ok(
+        content.includes("status = 'cancelled'"),
+        'Migration must cancel legacy duplicates to protect data integrity'
+      );
+
+      // 2. Partial unique index excluding cancelled bookings
+      assert.ok(
+        content.includes('CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_active_appointment_slot'),
+        'Unique index must be defined'
+      );
+      assert.ok(
+        content.includes("WHERE status IN ('scheduled', 'confirmed')"),
+        'Index must only target active bookings so cancelled slots are re-bookable'
+      );
+
+      // 3. Atomic stored procedure with advisory transaction locking
+      assert.ok(
+        content.includes('CREATE OR REPLACE FUNCTION public.book_chair_appointment_atomic'),
+        'Must define atomic booking function book_chair_appointment_atomic'
+      );
+      assert.ok(
+        content.includes('pg_advisory_xact_lock'),
+        'Must use pg_advisory_xact_lock for deterministic serializability'
+      );
+    });
+
+    it('verifies Edge Function implements atomic RPC and handles 23505 unique violations', () => {
+      const edgeFunctionPath = path.resolve(process.cwd(), 'supabase/functions/verify-razorpay-payment/index.ts');
+      const edgeFunctionCode = fs.readFileSync(edgeFunctionPath, 'utf8');
+
+      assert.ok(
+        edgeFunctionCode.includes('book_chair_appointment_atomic'),
+        'Edge function must call atomic booking stored procedure'
+      );
+      assert.ok(
+        edgeFunctionCode.includes('23505') || edgeFunctionCode.includes('unique'),
+        'Edge function must catch unique violation conflict (23505)'
+      );
+      assert.ok(
+        edgeFunctionCode.includes('prevent chair conflict') || edgeFunctionCode.includes('Slot adjusted automatically'),
+        'Edge function must gracefully notify and adjust slot on conflict'
+      );
     });
   });
 

@@ -205,63 +205,103 @@ serve(async (req) => {
       );
     }
 
-    // 2. Double-booking conflict prevention: Check if chair slot is already confirmed
-    const { data: existingSlotBooking } = await serviceClient
-      .from('appointments')
-      .select('id, token_number, status')
-      .eq('doctor_id', appointmentData.doctor_id)
-      .eq('appointment_date', appointmentData.appointment_date)
-      .eq('appointment_time', appointmentData.appointment_time)
-      .in('status', ['scheduled', 'confirmed'])
-      .maybeSingle();
+    // 2. Atomic Database-Level Booking & Concurrency Conflict Prevention
+    // Try the atomic RPC book_chair_appointment_atomic first, which acquires a PostgreSQL
+    // advisory transaction lock to serialize concurrent attempts and prevent race conditions.
+    let appointment: any = null;
+    let tokenNumber = 1;
 
-    if (existingSlotBooking) {
-      console.warn(`Conflict detected: Chair slot ${appointmentData.appointment_time} already reserved. Reallocating to next window...`);
-      const [h, m] = (appointmentData.appointment_time || "10:00").split(':').map(Number);
-      const nextMin = (m + 30) % 60;
-      const nextHour = h + Math.floor((m + 30) / 60);
-      appointmentData.appointment_time = `${String(nextHour).padStart(2, '0')}:${String(nextMin).padStart(2, '0')}`;
-      appointmentData.special_instructions = (appointmentData.special_instructions ? appointmentData.special_instructions + " | " : "") + "Slot adjusted automatically to prevent chair conflict.";
+    try {
+      const { data: atomicResult, error: atomicError } = await serviceClient
+        .rpc('book_chair_appointment_atomic', {
+          p_user_id: userId,
+          p_doctor_id: appointmentData.doctor_id,
+          p_hospital_id: appointmentData.hospital_id,
+          p_appointment_date: appointmentData.appointment_date,
+          p_appointment_time: appointmentData.appointment_time,
+          p_appointment_type: appointmentData.appointment_type || 'consultation',
+          p_token_type: appointmentData.token_type || 'normal',
+          p_special_instructions: appointmentData.special_instructions,
+          p_auto_reallocate: true,
+        });
+
+      if (!atomicError && atomicResult && atomicResult.length > 0) {
+        const res = atomicResult[0];
+        tokenNumber = res.token_number;
+        appointmentData.appointment_time = res.final_time;
+
+        const { data: fullApt } = await serviceClient
+          .from('appointments')
+          .select('*')
+          .eq('id', res.appointment_id)
+          .single();
+
+        appointment = fullApt;
+        console.log(`Atomic chair booking succeeded: appointment_id=${appointment?.id}, time=${res.final_time}, reallocated=${res.reallocated}`);
+      } else if (atomicError) {
+        console.warn('Atomic booking RPC returned error, proceeding to direct insert with constraint handler:', atomicError.message);
+      }
+    } catch (rpcErr) {
+      console.warn('Atomic booking RPC exception, falling back to direct insert with unique violation retry:', rpcErr);
     }
 
-    // Get next token number
-    const { data: tokenData, error: tokenError } = await serviceClient
-      .rpc('get_next_token_number', {
-        p_doctor_id: appointmentData.doctor_id,
-        p_date: appointmentData.appointment_date,
-      });
+    // Fallback: If RPC not yet installed or failed, use insert with database unique constraint violation (23505) retry loop
+    if (!appointment) {
+      let attempts = 0;
+      const maxAttempts = 8;
+      let inserted = false;
 
-    if (tokenError) {
-      console.error('Error getting token number');
-      throw tokenError;
+      while (!inserted && attempts < maxAttempts) {
+        attempts++;
+
+        // Get next token number
+        const { data: tokenData } = await serviceClient
+          .rpc('get_next_token_number', {
+            p_doctor_id: appointmentData.doctor_id,
+            p_date: appointmentData.appointment_date,
+          });
+
+        tokenNumber = tokenData || 1;
+
+        const { data: aptData, error: insertError } = await serviceClient
+          .from('appointments')
+          .insert({
+            user_id: userId,
+            doctor_id: appointmentData.doctor_id,
+            hospital_id: appointmentData.hospital_id,
+            appointment_date: appointmentData.appointment_date,
+            appointment_time: appointmentData.appointment_time,
+            appointment_type: appointmentData.appointment_type,
+            token_type: appointmentData.token_type || 'normal',
+            special_instructions: appointmentData.special_instructions,
+            token_number: tokenNumber,
+            status: 'confirmed',
+          })
+          .select()
+          .single();
+
+        if (!insertError && aptData) {
+          appointment = aptData;
+          inserted = true;
+          console.log(`Appointment created successfully on attempt ${attempts} at ${appointmentData.appointment_time}`);
+        } else if (insertError && (insertError.code === '23505' || insertError.message?.toLowerCase().includes('unique') || insertError.message?.toLowerCase().includes('duplicate'))) {
+          // PostgreSQL unique constraint violation (23505) from simultaneous booking attempt!
+          console.warn(`Concurrent collision detected for slot ${appointmentData.appointment_time}. Gracefully reallocating to next 30-min window...`);
+          const [h, m] = (appointmentData.appointment_time || "10:00").split(':').map(Number);
+          const nextMin = (m + 30) % 60;
+          const nextHour = h + Math.floor((m + 30) / 60);
+          appointmentData.appointment_time = `${String(nextHour).padStart(2, '0')}:${String(nextMin).padStart(2, '0')}`;
+          appointmentData.special_instructions = (appointmentData.special_instructions ? appointmentData.special_instructions + " | " : "") + "Slot adjusted automatically to prevent chair conflict.";
+        } else {
+          console.error('Fatal appointment insertion error:', insertError);
+          throw insertError;
+        }
+      }
+
+      if (!appointment) {
+        throw new Error('Unable to reserve appointment chair after multiple collision retries');
+      }
     }
-
-    const tokenNumber = tokenData || 1;
-
-    // Create appointment - using the verified user ID from JWT, not from request body
-    const { data: appointment, error: appointmentError } = await serviceClient
-      .from('appointments')
-      .insert({
-        user_id: userId, // Using verified user ID from JWT
-        doctor_id: appointmentData.doctor_id,
-        hospital_id: appointmentData.hospital_id,
-        appointment_date: appointmentData.appointment_date,
-        appointment_time: appointmentData.appointment_time,
-        appointment_type: appointmentData.appointment_type,
-        token_type: appointmentData.token_type || 'normal',
-        special_instructions: appointmentData.special_instructions,
-        token_number: tokenNumber,
-        status: 'confirmed',
-      })
-      .select()
-      .single();
-
-    if (appointmentError) {
-      console.error('Error creating appointment');
-      throw appointmentError;
-    }
-
-    console.log('Appointment created successfully');
 
     // Record payment in payments table
     const { error: paymentError } = await serviceClient
