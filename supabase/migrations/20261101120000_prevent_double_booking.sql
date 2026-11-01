@@ -60,7 +60,7 @@ RETURNS TABLE (
   final_time TIME,
   token_number INTEGER,
   reallocated BOOLEAN,
-  status TEXT
+  booking_status TEXT
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -121,7 +121,7 @@ BEGIN
     RAISE EXCEPTION 'INVALID_ARGUMENT: p_doctor_id cannot be null' USING ERRCODE = '22023';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM public.doctors WHERE id = p_doctor_id) THEN
+  IF NOT EXISTS (SELECT 1 FROM public.doctors d WHERE d.id = p_doctor_id) THEN
     RAISE EXCEPTION 'INVALID_ARGUMENT: Stylist % does not exist', p_doctor_id USING ERRCODE = '22023';
   END IF;
 
@@ -130,7 +130,7 @@ BEGIN
     RAISE EXCEPTION 'INVALID_ARGUMENT: p_hospital_id cannot be null' USING ERRCODE = '22023';
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM public.hospitals WHERE id = p_hospital_id) THEN
+  IF NOT EXISTS (SELECT 1 FROM public.hospitals h WHERE h.id = p_hospital_id) THEN
     RAISE EXCEPTION 'INVALID_ARGUMENT: Studio % does not exist', p_hospital_id USING ERRCODE = '22023';
   END IF;
 
@@ -191,11 +191,11 @@ BEGIN
 
   -- Check if requested slot is already reserved by an active booking
   SELECT EXISTS (
-    SELECT 1 FROM public.appointments
-    WHERE doctor_id = p_doctor_id
-      AND appointment_date = p_appointment_date
-      AND appointment_time = v_target_time
-      AND status IN ('scheduled', 'confirmed')
+    SELECT 1 FROM public.appointments apt
+    WHERE apt.doctor_id = p_doctor_id
+      AND apt.appointment_date = p_appointment_date
+      AND apt.appointment_time = v_target_time
+      AND apt.status IN ('scheduled', 'confirmed')
   ) INTO v_slot_occupied;
 
   -- If occupied and auto-reallocation is allowed, find next free 30-min slot
@@ -215,11 +215,11 @@ BEGIN
       END IF;
 
       SELECT EXISTS (
-        SELECT 1 FROM public.appointments
-        WHERE doctor_id = p_doctor_id
-          AND appointment_date = p_appointment_date
-          AND appointment_time = v_target_time
-          AND status IN ('scheduled', 'confirmed')
+        SELECT 1 FROM public.appointments apt
+        WHERE apt.doctor_id = p_doctor_id
+          AND apt.appointment_date = p_appointment_date
+          AND apt.appointment_time = v_target_time
+          AND apt.status IN ('scheduled', 'confirmed')
       ) INTO v_slot_occupied;
     END LOOP;
 
@@ -233,11 +233,11 @@ BEGIN
   END IF;
 
   -- Atomically calculate next token number
-  SELECT COALESCE(MAX(token_number), 0) + 1
+  SELECT COALESCE(MAX(apt.token_number), 0) + 1
   INTO v_next_token
-  FROM public.appointments
-  WHERE doctor_id = p_doctor_id
-    AND appointment_date = p_appointment_date;
+  FROM public.appointments apt
+  WHERE apt.doctor_id = p_doctor_id
+    AND apt.appointment_date = p_appointment_date;
 
   -- Insert the confirmed appointment atomically
   INSERT INTO public.appointments (
@@ -263,7 +263,7 @@ BEGIN
     v_next_token,
     'confirmed'
   )
-  RETURNING id INTO v_new_id;
+  RETURNING appointments.id INTO v_new_id;
 
   RETURN QUERY
   SELECT v_new_id, v_target_time, v_next_token, v_reallocated, 'confirmed'::TEXT;
@@ -273,8 +273,8 @@ EXCEPTION
     -- Fallback safety net for physical constraint collision
     IF p_auto_reallocate AND v_attempts < v_max_attempts THEN
       v_target_time := v_target_time + INTERVAL '30 minutes';
-      SELECT COALESCE(MAX(token_number), 0) + 1 INTO v_next_token
-      FROM public.appointments WHERE doctor_id = p_doctor_id AND appointment_date = p_appointment_date;
+      SELECT COALESCE(MAX(apt.token_number), 0) + 1 INTO v_next_token
+      FROM public.appointments apt WHERE apt.doctor_id = p_doctor_id AND apt.appointment_date = p_appointment_date;
 
       INSERT INTO public.appointments (
         user_id, doctor_id, hospital_id, appointment_date, appointment_time,
@@ -285,7 +285,7 @@ EXCEPTION
         COALESCE(p_special_instructions || ' | ', '') || 'Slot adjusted automatically via constraint fallback.',
         v_next_token, 'confirmed'
       )
-      RETURNING id INTO v_new_id;
+      RETURNING appointments.id INTO v_new_id;
 
       RETURN QUERY SELECT v_new_id, v_target_time, v_next_token, TRUE, 'confirmed'::TEXT;
     ELSE

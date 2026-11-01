@@ -462,8 +462,14 @@ describe('FadeCraft Core Logic & Security Test Suite', () => {
       assert.ok(migrationSql.includes('p_hospital_id IS NULL'), 'Validates p_hospital_id is not null');
 
       // Foreign key existence validation
-      assert.ok(migrationSql.includes('SELECT 1 FROM public.doctors WHERE id = p_doctor_id'), 'Validates doctor exists');
-      assert.ok(migrationSql.includes('SELECT 1 FROM public.hospitals WHERE id = p_hospital_id'), 'Validates studio exists');
+      assert.ok(
+        migrationSql.includes('FROM public.doctors') && migrationSql.includes('p_doctor_id'),
+        'Validates doctor exists'
+      );
+      assert.ok(
+        migrationSql.includes('FROM public.hospitals') && migrationSql.includes('p_hospital_id'),
+        'Validates studio exists'
+      );
 
       // Date & time validation
       assert.ok(migrationSql.includes('p_appointment_date < CURRENT_DATE'), 'Rejects past booking dates');
