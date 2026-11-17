@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -63,7 +63,15 @@ const Payment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [bookingData] = useState<BookingData | null>(location.state?.bookingData || null);
   const [showRatingDialog, setShowRatingDialog] = useState(false);
+  const paymentSucceededRef = useRef(false);
   const createReview = useCreateReview();
+
+  // If user navigated directly or refreshed, redirect to search
+  useEffect(() => {
+    if (!bookingData) {
+      navigate("/search", { replace: true });
+    }
+  }, [bookingData, navigate]);
 
   const handleDoctorRatingSubmit = async (rating: number, review: string) => {
     if (!bookingData) return;
@@ -132,6 +140,10 @@ const Payment = () => {
         }
 
         try {
+          const totalFee = bookingData.consultationFee + (bookingData.priorityFee || 0);
+          const { data: sessionData } = await supabase.auth.getSession();
+          const authHeader = sessionData?.session?.access_token ? `Bearer ${sessionData.session.access_token}` : undefined;
+
           const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
             'verify-razorpay-payment',
             {
@@ -139,15 +151,27 @@ const Payment = () => {
                 razorpay_order_id: orderId,
                 razorpay_payment_id: paymentId,
                 razorpay_signature: signature,
-                appointmentData: bookingData,
+                appointmentData: {
+                  doctor_id: bookingData.doctorId,
+                  hospital_id: bookingData.hospitalId,
+                  appointment_date: bookingData.appointmentDate,
+                  appointment_time: bookingData.appointmentTime,
+                  appointment_type: bookingData.appointmentType,
+                  token_type: bookingData.tokenType || 'normal',
+                  special_instructions: bookingData.specialInstructions,
+                  consultation_fee: totalFee,
+                  user_id: user?.id || sessionData?.session?.user?.id,
+                },
               },
+              ...(authHeader ? { headers: { Authorization: authHeader } } : {}),
             }
           );
           if (verifyError) throw verifyError;
           if (verifyData?.error) throw new Error(verifyData.error?.message || verifyData.error);
+          paymentSucceededRef.current = true;
           toast({
-            title: "Payment Successful",
-            description: "Your appointment has been confirmed",
+            title: "Payment Successful! 🎉",
+            description: "Your chair appointment has been confirmed.",
           });
           setShowRatingDialog(true);
         } catch (err: any) {
@@ -170,17 +194,24 @@ const Payment = () => {
       }
     };
 
-    App.addListener('appUrlOpen', handler);
+    let listenerHandle: any = null;
+    App.addListener('appUrlOpen', handler).then((handle) => {
+      listenerHandle = handle;
+    });
+
     return () => {
-      App.removeAllListeners();
+      if (listenerHandle) {
+        listenerHandle.remove();
+      }
     };
-  }, [bookingData]);
+  }, [bookingData, user]);
 
   const handlePayment = async () => {
     if (!user || !bookingData) return;
     if (isProcessing) return;
 
     setIsProcessing(true);
+    paymentSucceededRef.current = false;
 
     try {
       // Dynamically load Razorpay SDK (works on web + Android Capacitor)
@@ -264,6 +295,7 @@ const Payment = () => {
       };
 
       const handleSuccess = async (response: any) => {
+        paymentSucceededRef.current = true;
         try {
           const { data: verifyData, error: verifyError } = await supabase.functions.invoke(
             'verify-razorpay-payment',
@@ -281,8 +313,10 @@ const Payment = () => {
                   token_type: bookingData.tokenType || 'normal',
                   special_instructions: bookingData.specialInstructions,
                   consultation_fee: totalFee,
+                  user_id: user.id,
                 },
               },
+              ...(authHeader ? { headers: { Authorization: authHeader } } : {}),
             }
           );
           if (verifyError) throw verifyError;
@@ -334,6 +368,7 @@ const Payment = () => {
         options.handler = handleSuccess;
         options.modal = {
           ondismiss: () => {
+            if (paymentSucceededRef.current) return;
             if (isProcessing) {
               setIsProcessing(false);
             }

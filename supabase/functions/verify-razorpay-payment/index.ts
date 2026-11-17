@@ -85,8 +85,8 @@ serve(async (req) => {
 
     let userId = '';
 
-    // Recover appointmentData and userId from Razorpay Notes if missing (Redirect Case)
-    if (isRedirect) {
+    // Recover appointmentData and userId from Razorpay Notes if missing
+    if (!appointmentData || !userId) {
       console.log('Attempting to recover data from Razorpay Notes for order:', razorpay_order_id);
       try {
         const auth = btoa(`${razorpayKeyId}:${razorpayKeySecret}`);
@@ -94,19 +94,19 @@ serve(async (req) => {
           headers: { 'Authorization': `Basic ${auth}` }
         });
         
-        if (!orderResponse.ok) {
-          throw new Error(`Failed to fetch order from Razorpay: ${orderResponse.statusText}`);
-        }
-        
-        const orderData = await orderResponse.json();
-        if (orderData.notes) {
-          if (orderData.notes.appointmentData && !appointmentData) {
-            appointmentData = JSON.parse(orderData.notes.appointmentData);
-            console.log('Successfully recovered appointmentData from notes');
-          }
-          if (orderData.notes.user_id) {
-            userId = orderData.notes.user_id;
-            console.log('Successfully recovered user_id from notes:', userId);
+        if (orderResponse.ok) {
+          const orderData = await orderResponse.json();
+          if (orderData.notes) {
+            if (orderData.notes.appointmentData && !appointmentData) {
+              appointmentData = typeof orderData.notes.appointmentData === 'string'
+                ? JSON.parse(orderData.notes.appointmentData)
+                : orderData.notes.appointmentData;
+              console.log('Successfully recovered appointmentData from notes');
+            }
+            if (orderData.notes.user_id && !userId) {
+              userId = orderData.notes.user_id;
+              console.log('Successfully recovered user_id from notes:', userId);
+            }
           }
         }
       } catch (recoveryError) {
@@ -117,6 +117,19 @@ serve(async (req) => {
     if (!appointmentData) {
       throw new Error('Appointment data is missing and could not be recovered');
     }
+
+    // Normalize appointmentData to support both snake_case and camelCase
+    appointmentData = {
+      doctor_id: appointmentData.doctor_id || appointmentData.doctorId,
+      hospital_id: appointmentData.hospital_id || appointmentData.hospitalId,
+      appointment_date: appointmentData.appointment_date || appointmentData.appointmentDate,
+      appointment_time: appointmentData.appointment_time || appointmentData.appointmentTime,
+      appointment_type: appointmentData.appointment_type || appointmentData.appointmentType || 'consultation',
+      token_type: appointmentData.token_type || appointmentData.tokenType || 'normal',
+      special_instructions: appointmentData.special_instructions || appointmentData.specialInstructions || '',
+      consultation_fee: appointmentData.consultation_fee || appointmentData.consultationFee || 0,
+      user_id: appointmentData.user_id || appointmentData.userId || userId,
+    };
 
     // SECURITY: Handle authentication - for redirects, we trust the Razorpay signature
     // For direct API calls, we also require the JWT

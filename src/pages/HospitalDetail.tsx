@@ -58,7 +58,7 @@ const HospitalDetail = () => {
         {/* Hospital Header */}
         <div className="relative rounded-lg overflow-hidden">
           <img
-            src={hospital.images[0] || "/placeholder.svg"}
+            src={hospital.images?.[0] || "/placeholder.svg"}
             alt={hospital.name}
             className="w-full h-64 md:h-96 object-cover"
           />
@@ -68,7 +68,7 @@ const HospitalDetail = () => {
               <div className="flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-1">
                   <Star className="h-5 w-5 fill-warning text-warning" />
-                  <span className="font-bold text-lg">{hospital.rating.toFixed(1)}</span>
+                  <span className="font-bold text-lg">{(hospital.rating ?? 0).toFixed(1)}</span>
                   <span className="text-muted-foreground">({hospital.total_reviews} reviews)</span>
                 </div>
                 <Badge variant="secondary">{hospital.status}</Badge>
@@ -91,7 +91,7 @@ const HospitalDetail = () => {
                 <div>
                   <h3 className="font-semibold mb-2">Specialties</h3>
                   <div className="flex flex-wrap gap-2">
-                    {hospital.specialties.map((specialty: string) => (
+                    {(hospital.specialties || []).map((specialty: string) => (
                       <Badge key={specialty} variant="secondary">
                         {specialty}
                       </Badge>

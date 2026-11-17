@@ -38,9 +38,9 @@ export const Header = () => {
                 <Link to="/settings" className="text-sm font-semibold text-slate-300 hover:text-amber-400 transition-colors">
                   Settings & Preferences
                 </Link>
-                <Link to="/support" className="text-sm font-semibold text-slate-300 hover:text-amber-400 transition-colors">
+                <a href="mailto:concierge@fadecraft.app" className="text-sm font-semibold text-slate-300 hover:text-amber-400 transition-colors">
                   Concierge Support
-                </Link>
+                </a>
               </nav>
             </SheetContent>
           </Sheet>

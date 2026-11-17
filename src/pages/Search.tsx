@@ -14,7 +14,7 @@ import { useDoctors } from "@/hooks/useDoctors";
 
 const Search = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const specialtyParam = searchParams.get("specialty");
+  const specialtyParam = searchParams.get("specialty") || searchParams.get("service");
   const queryParam = searchParams.get("q");
   
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>(

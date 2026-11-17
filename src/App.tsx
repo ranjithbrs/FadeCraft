@@ -33,30 +33,21 @@ const BackButtonHandler = () => {
     };
     setupStatusBar();
 
-    const handler = CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+    let backHandler: any = null;
+    CapacitorApp.addListener('backButton', () => {
       if (location.pathname === '/') {
-        // Exit app if on home page
         CapacitorApp.exitApp();
       } else {
-        // Otherwise go back
         navigate(-1);
       }
-    });
-
-    // Handle deep links for payment redirects
-    const urlHandler = CapacitorApp.addListener('appUrlOpen', ({ url }) => {
-      console.log('App opened with URL:', url);
-      // The URL will be something like com.mediq.app://payment-success?...
-      if (url.includes('payment-success')) {
-        navigate('/appointments');
-      } else if (url.includes('payment-failure')) {
-        navigate('/payment');
-      }
+    }).then((h) => {
+      backHandler = h;
     });
 
     return () => {
-      handler.then(h => h.remove());
-      urlHandler.then(h => h.remove());
+      if (backHandler) {
+        backHandler.remove();
+      }
     };
   }, [location, navigate]);
 

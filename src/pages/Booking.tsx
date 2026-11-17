@@ -22,6 +22,13 @@ const DEFAULT_SALON_SLOTS = [
   "18:00", "18:30", "19:00", "19:30", "20:00"
 ];
 
+const formatLocalDate = (d: Date) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 const Booking = () => {
   const [searchParams] = useSearchParams();
   const doctorId = searchParams.get("doctor");
@@ -37,7 +44,7 @@ const Booking = () => {
   const [isCheckingConflict, setIsCheckingConflict] = useState(false);
 
   const { data: doctorData, isLoading: doctorLoading } = useDoctorById(doctorId || undefined);
-  const selectedDateStr = selectedDate ? selectedDate.toISOString().split('T')[0] : undefined;
+  const selectedDateStr = selectedDate ? formatLocalDate(selectedDate) : undefined;
   
   const { data: rawAvailableSlots = [], isLoading: slotsLoading } = useAvailableSlots(
     doctorId || undefined,

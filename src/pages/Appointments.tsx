@@ -23,7 +23,7 @@ const Appointments = () => {
       const aptDate = new Date(apt.appointment_date);
       aptDate.setHours(0, 0, 0, 0);
       return (
-        (apt.status === "scheduled" || apt.status === "confirmed") &&
+        (apt.status === "scheduled" || apt.status === "confirmed" || apt.status === "in_consultation") &&
         aptDate >= today
       );
     });

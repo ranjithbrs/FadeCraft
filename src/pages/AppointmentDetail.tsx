@@ -236,7 +236,7 @@ const AppointmentDetail = () => {
         </div>
 
         {/* VIP Token Card with Live Queue Status */}
-        {appointment.token_number && (
+        {appointment.token_number && appointment.status !== 'cancelled' && (
           <Card className="mb-6 bg-gradient-to-b from-slate-900 to-slate-950 border border-amber-500/40 shadow-2xl shadow-amber-500/10 rounded-2xl overflow-hidden relative">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
             <CardContent className="pt-6 pb-6">
@@ -292,6 +292,12 @@ const AppointmentDetail = () => {
           </Card>
         )}
 
+        {appointment.status === 'cancelled' && (
+          <Card className="mb-6 bg-red-950/40 border border-red-500/30 rounded-2xl p-4 text-center">
+            <p className="text-red-300 font-semibold text-sm">This reservation has been cancelled.</p>
+          </Card>
+        )}
+
         {/* Reservation Information */}
         <Card className="mb-6 bg-slate-900 border border-slate-800 rounded-2xl">
           <CardHeader>
@@ -305,7 +311,7 @@ const AppointmentDetail = () => {
               <div>
                 <p className="text-xs font-semibold text-slate-400">Date</p>
                 <p className="text-sm font-medium text-slate-100">
-                  {format(new Date(appointment.appointment_date), "PPP")}
+                  {format(new Date(appointment.appointment_date + 'T00:00:00'), "PPP")}
                 </p>
               </div>
             </div>
