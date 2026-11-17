@@ -73,10 +73,8 @@ const Booking = lazy(() => import("./pages/Booking"));
 const Payment = lazy(() => import("./pages/Payment"));
 const PaymentHistory = lazy(() => import("./pages/PaymentHistory"));
 const AppointmentDetail = lazy(() => import("./pages/AppointmentDetail"));
-const Pharmacy = lazy(() => import("./pages/Pharmacy"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const DoctorDashboard = lazy(() => import("./pages/DoctorDashboard"));
-const Emergency = lazy(() => import("./pages/Emergency"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -111,8 +109,6 @@ const App = () => (
                 <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
                 <Route path="/hospital/:id" element={<ProtectedRoute><HospitalDetail /></ProtectedRoute>} />
                 <Route path="/doctor/:id" element={<ProtectedRoute><DoctorDetail /></ProtectedRoute>} />
-                <Route path="/pharmacy" element={<ProtectedRoute><Pharmacy /></ProtectedRoute>} />
-                <Route path="/emergency" element={<ProtectedRoute><Emergency /></ProtectedRoute>} />
                 
                 {/* Protected Routes */}
                 <Route path="/appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
