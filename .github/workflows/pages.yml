@@ -19,6 +19,10 @@ concurrency:
 
 jobs:
   build-and-deploy:
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -43,14 +47,19 @@ jobs:
       - name: Run test suite
         run: npm test
 
+      - name: Configure Pages
+        id: configure-pages
+        uses: actions/configure-pages@v5
+
       - name: Build production bundle
         run: npm run build
+        env:
+          VITE_BASE_PATH: ${{ steps.configure-pages.outputs.base_path || '/' }}
 
-      - name: Disable Jekyll processing
-        run: touch dist/.nojekyll
-
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
+      - name: Disable Jekyll and set up SPA 404 fallback
+        run: |
+          touch dist/.nojekyll
+          cp dist/index.html dist/404.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
